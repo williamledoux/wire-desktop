@@ -19,24 +19,102 @@
 
 'use strict';
 
-const {remote, ipcRenderer, webFrame, desktopCapturer} = require('electron');
-const {app} = remote;
-const pkg = require('./../package.json');
-const path = require('path');
+// To use full sandbox, we need to get rid of desktopCapturer
+// and webFrame dependencies by using the IPC Renderer instead
 
-webFrame.setZoomLevelLimits(1, 1);
+const path = require('path');
+const {remote, ipcRenderer, desktopCapturer, webFrame} = require('electron');
+
+const {app} = remote;
+
+// Get Package.json
+const buf = require('fs').readFileSync('./electron/package.json');
+const pkg = JSON.parse(buf.toString('utf8'));
+
+const debug = console.log;
+
+// Webframe
+debug('Loading webframe');
+webFrame.setVisualZoomLevelLimits(1, 1);
+webFrame.registerURLSchemeAsPrivileged('wire', {
+  secure: true,
+  bypassCSP: false,
+  allowServiceWorkers: true,
+  supportFetchAPI: true,
+  corsEnabled: true,
+});
 webFrame.registerURLSchemeAsBypassingCSP('file');
 
 // https://github.com/electron/electron/issues/2984
 const _setImmediate = setImmediate;
-process.once('loaded', function() {
+process.once('loaded', () => {
+  debug('loaded fired');
+
   global.setImmediate = _setImmediate;
   global.openGraph = require('./lib/openGraph');
   global.desktopCapturer = desktopCapturer;
+
+  /*global.desktopCapturer = {
+
+    // desktopCapturer: https://discuss.atom.io/t/use-desktopcapturer-in-sandboxed-renderer-process/41536/2
+
+    getSources: (options, callback) => {
+
+      var nextId = 0;
+      var includes = [].includes;
+
+      function getNextId() {
+        return ++nextId;
+      }
+
+      // |options.type| can not be empty and has to include 'window' or 'screen'.
+      function isValid(options) {
+        return ((options != null ? options.types : void 0) != null) && Array.isArray(options.types);
+      }
+
+      let captureScreen, captureWindow, id;
+
+      if (!isValid(options)) {
+        return callback(new Error('Invalid options'));
+      }
+
+      captureWindow = includes.call(options.types, 'window');
+      captureScreen = includes.call(options.types, 'screen');
+      if (options.thumbnailSize == null) {
+        options.thumbnailSize = {
+          width: 150,
+          height: 150
+        }
+      }
+
+      id = getNextId();
+
+      local.ipcRenderer.send('ELECTRON_BROWSER_DESKTOP_CAPTURER_GET_SOURCES', captureWindow, captureScreen, options.thumbnailSize, id);
+
+      return local.ipcRenderer.once('ELECTRON_RENDERER_DESKTOP_CAPTURER_RESULT_' + id, (event, sources) => {
+        let source;
+
+        callback(null, (() => {
+          var i, len, results
+          results = [];
+          for (i = 0, len = sources.length; i < len; i++) {
+            source = sources[i]
+            results.push({
+              id: source.id,
+              name: source.name,
+              thumbnail: source.thumbnail
+            });
+          }
+          return results;
+        })())
+      })
+    }
+
+  };*/
   global.winston = require('winston');
 
   const logFilePath = path.join(app.getPath('userData'), require('./config').CONSOLE_LOG);
-  console.log('Logging into file', logFilePath);
+  debug('Logging into file: %s', logFilePath);
 
   winston
     .add(winston.transports.File, {
@@ -84,7 +162,8 @@ ipcRenderer.once('splash-screen-loaded', function() {
 
 // app.wire.com was loaded
 ipcRenderer.once('webapp-loaded', function(sender, config) {
-  // loading webapp failed
+  debug('webapp-loaded');
+  // Loading webapp failed
   if (window.wire === undefined) {
     return setInterval(function () {
       if (navigator.onLine) {
@@ -96,6 +175,7 @@ ipcRenderer.once('webapp-loaded', function(sender, config) {
   ipcRenderer.send('webapp-version', z.util.Environment.version(false));
   window.electron_version = config.electron_version;
   window.notification_icon = config.notification_icon;
+
   require('./menu/context');
 
   if (process.platform === 'darwin') {
@@ -106,7 +186,8 @@ ipcRenderer.once('webapp-loaded', function(sender, config) {
   }
 
   // we are on app.wire.com/
-  if (wire.app) {
+  if (typeof wire !== 'undefined' && typeof wire.app !== 'undefined') {
+
     // hijack google authenticate method
     wire.app.service.connect_google._authenticate = function() {
       return new Promise(function(resolve, reject) {
@@ -137,6 +218,8 @@ ipcRenderer.once('webapp-loaded', function(sender, config) {
     });
   }
   // else we are on /auth
+
+  // Load Libsodium
   try {
     Object.assign(window.sodium, require('libsodium-neon'));
     console.info('Using libsodium-neon.');

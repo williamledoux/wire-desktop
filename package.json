@@ -7,9 +7,9 @@
     "install": "cd electron && npm run rebuild-native-modules",
     "postinstall": "cd electron && npm run rebuild-neon",
     "start": "electron electron --inspect --devtools --enable-logging",
-    "staging": "electron electron --inspect --devtools --enable-logging --env=https://wire-webapp-staging.zinfra.io",
-    "prod": "electron electron --inspect --devtools --enable-logging --env=https://app.wire.com",
-    "localhost": "electron electron --inspect --devtools --enable-logging --env=http://localhost:8888",
+    "staging": "electron electron --inspect --devtools --enable-logging --env=staging",
+    "prod": "electron electron --inspect --devtools --enable-logging --env=prod",
+    "localhost": "electron electron --enable-sandbox --inspect --devtools --enable-logging --env=localhost",
     "test": "eslint electron && electron-mocha tests",
     "build:macos": "grunt macos-prod",
     "build:win": "grunt win-prod",
@@ -38,5 +38,10 @@
     "grunt-git": "1.0.3",
     "grunt-github-changes": "0.1.0",
     "load-grunt-tasks": "3.5.2"
+  },
+  "dependencies": {
+    "debug": "^2.6.8",
+    "finalhandler": "^1.0.3",
+    "serve-static": "^1.12.3"
   }
 }

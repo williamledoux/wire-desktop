@@ -54,6 +54,13 @@ let config = {
   UPDATE_DELAY: 5 * 60 * 1000,
   UPDATE_INTERVAL: 24 * 60 * 60 * 1000,
 
+  ALLOWED_WEBVIEWS_ORIGIN: {
+    soundcloud: /(https?:\/\/(?:www\.|m\.)?)?soundcloud\.com(\/[\w\-]+){2,3}/g,
+    spotify: /https?:\/\/(?:play\.|open\.)*spotify\.com\/([\w\-/]+)/g,
+    vimeo: /https?:\/\/(?:vimeo\.com\/|player\.vimeo\.com\/)(?:video\/|(?:channels\/staffpicks\/|channels\/)|)((\w|-){7,9})/g,
+    youtube: /(?:youtube(?:-nocookie|)\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\/?\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/g,
+  },
+
   WHITE_LIST: [
     'https://www.wire.com/',
     'https://wire.com/',

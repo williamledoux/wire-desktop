@@ -63,12 +63,7 @@ const ABOUT_HTML = 'file://' + path.join(APP_PATH, 'html', 'about.html');
 const ICON = 'wire.' + ((process.platform === 'win32') ? 'ico' : 'png');
 const ICON_PATH = path.join(APP_PATH, 'img', ICON);
 
-const ALLOWED_WEBVIEWS = {
-  soundcloud: /(https?:\/\/(?:www\.|m\.)?)?soundcloud\.com(\/[\w\-]+){2,3}/g,
-  spotify: /https?:\/\/(?:play\.|open\.)*spotify\.com\/([\w\-/]+)/g,
-  vimeo: /https?:\/\/(?:vimeo\.com\/|player\.vimeo\.com\/)(?:video\/|(?:channels\/staffpicks\/|channels\/)|)((\w|-){7,9})/g,
-  youtube: /(?:youtube(?:-nocookie|)\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\/?\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/g,
-};
+const ALLOWED_WEBVIEWS_ORIGIN = config.ALLOWED_WEBVIEW;
 
 class ElectronWrapperInit {
 
@@ -142,10 +137,10 @@ class ElectronWrapperInit {
         webPreferences.nodeIntegration = false;
 
         // Verify URL being loaded
-        if (!params.src.match(ALLOWED_WEBVIEWS.soundcloud) &&
-            !params.src.match(ALLOWED_WEBVIEWS.spotify) &&
-            !params.src.match(ALLOWED_WEBVIEWS.vimeo) &&
-            !params.src.match(ALLOWED_WEBVIEWS.youtube)
+        if (!params.src.match(ALLOWED_WEBVIEWS_ORIGIN.soundcloud) &&
+            !params.src.match(ALLOWED_WEBVIEWS_ORIGIN.spotify) &&
+            !params.src.match(ALLOWED_WEBVIEWS_ORIGIN.vimeo) &&
+            !params.src.match(ALLOWED_WEBVIEWS_ORIGIN.youtube)
           ) {
           event.preventDefault();
         }

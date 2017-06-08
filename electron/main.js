@@ -202,8 +202,10 @@ class ElectronWrapperInit {
         delete webPreferences.preload;
         delete webPreferences.preloadURL;
 
-        // Disable node integration
+        // Secure defaults
         webPreferences.nodeIntegration = false;
+        webPreferences.sandboxed = true;
+        webPreferences.contextIsolation = true;
 
         // Verify URL being loaded
         if (!params.src.match(ALLOWED_WEBVIEWS_ORIGIN.soundcloud) &&

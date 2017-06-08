@@ -57,7 +57,7 @@ const windowManager = require('./js/window-manager');
 
 // Web server options
 const WEB_SERVER_LISTEN = '127.0.0.1';
-const WEB_SERVER_HOST = 'wire://127.0.0.1';
+const WEB_SERVER_HOST = 'wire://prod.local';
 const WEB_SERVER_FILES = path.join(USER_DATAS_PATH, 'app.wire.com.asar');
 
 // Config
@@ -369,16 +369,6 @@ class ElectronWrapperInit {
   // IPC events
   ipcEvents() {
 
-    ipcMain.on('loaded', () => {
-      this.debug('loaded fired');
-
-      let size = this.browserWindow.getSize();
-      if (size[0] < config.MIN_WIDTH_MAIN || size[1] < config.MIN_HEIGHT_MAIN) {
-        this.debug('Resize to big window');
-        util.resizeToBig(this.browserWindow);
-      }
-    });
-
     ipcMain.once('webapp-version', (event, version) => {
       this.debug('webapp-version fired');
 
@@ -626,6 +616,14 @@ class BrowserWindowInit {
       // Allow access in the same window to wire://
       if(url.startsWith(`${WEB_SERVER_HOST}/`)) {
         this.debug('Allowing access to wire://');
+
+        // Resize the window if needed
+        let size = this.browserWindow.getSize();
+        if (size[0] < config.MIN_WIDTH_MAIN || size[1] < config.MIN_HEIGHT_MAIN) {
+          this.debug('Resize to big window');
+          util.resizeToBig(this.browserWindow);
+        }
+
         return;
       }
 

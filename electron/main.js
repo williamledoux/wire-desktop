@@ -17,6 +17,15 @@
  *
  */
 
+// ToDo: Make YT videos fullscreen?
+// ToDo: Full sandbox check (webview / webframe / desktopsharing)
+// ToDo: See for the Electron crash protocol fix
+// ToDo: Start working on app updating process
+// ToDo: Refactor preload.js
+// ToDo: Add port changing logic if the port is taken for the web server
+// ToDo: Find a better way to generate random numbers
+// ToDo: CORS on local network (add same CSP as app.wire.com)
+
 'use strict';
 
 // Modules
@@ -26,7 +35,6 @@ const minimist = require('minimist');
 const path = require('path');
 const raygun = require('raygun');
 const debug = require('debug');
-//const fork = require('child_process').fork;
 const finalhandler = require('finalhandler');
 const http = require('http');
 const serveStatic = require('serve-static');
@@ -34,17 +42,6 @@ const serveStatic = require('serve-static');
 // Paths
 const APP_PATH = app.getAppPath();
 const USER_DATAS_PATH = app.getPath('userData');
-
-// Web server options
-const WEB_SERVER_PORT = Math.floor(Math.random() * 55535) + 10000;
-const WEB_SERVER_LISTEN = '127.0.0.1';
-const WEB_SERVER_HOST = 'wire://127.0.0.1';
-const WEB_SERVER_FILES = path.join(USER_DATAS_PATH, 'app.wire.com.asar');
-
-// Config
-const config = require('./js/config');
-config.PROD_URL = `http://${WEB_SERVER_LISTEN}:${WEB_SERVER_PORT}`;
-const ALLOWED_WEBVIEWS_ORIGIN = config.ALLOWED_WEBVIEWS_ORIGIN;
 
 // Wrapper modules
 const certutils = require('./js/certutils');
@@ -58,7 +55,16 @@ const tray = require('./js/menu/tray');
 const util = require('./js/util');
 const windowManager = require('./js/window-manager');
 
+// Web server options
+const WEB_SERVER_LISTEN = '127.0.0.1';
+const WEB_SERVER_HOST = 'wire://127.0.0.1';
+const WEB_SERVER_FILES = path.join(USER_DATAS_PATH, 'app.wire.com.asar');
+
+// Config
+let PROD_URL;
 const argv = minimist(process.argv.slice(1));
+const config = require('./js/config');
+const ALLOWED_WEBVIEWS_ORIGIN = config.ALLOWED_WEBVIEWS_ORIGIN;
 
 const PRELOAD_JS = path.join(APP_PATH, 'js', 'preload.js');
 const WRAPPER_CSS = path.join(APP_PATH, 'css', 'wrapper.css');
@@ -100,10 +106,13 @@ const CSP = [
 
 class HTTPServer {
 
-  constructor() {
-    this.debug = debug('HTTPServer');
+  constructor(resolve) {
 
-    // Serve up public folder
+    this.debug = debug('HTTPServer');
+    this.resolve = resolve;
+    this.maxRetryBeforeReject = 3;
+
+    // Prepare serveStatic to serve up public folder
     this.serve = serveStatic(WEB_SERVER_FILES, {
       index: ['index.html'],
       setHeaders: (res, path) => {
@@ -114,11 +123,23 @@ class HTTPServer {
         res.setHeader('X-XSS-Protection', '1; mode=block');
         res.setHeader('Referrer-Header', 'no-referrer');
         res.setHeader('Content-Security-Policy', CSP);
+
+        // Force no cache
+        res.setHeader('Cache-Control', 'no-cache');
       }
     });
 
+    // Create the HTTP server
     this.createServer();
-    this.listen();
+
+    // Start the webserver
+    this.debug('tryToListen init');
+    this.tryToListen().then(() => {
+      this.debug('tryToListen OK');
+      resolve({
+        usedPort: this.portToUse
+      });
+    });
 
     return this.server;
   }
@@ -129,9 +150,35 @@ class HTTPServer {
     });
   }
 
-  listen() {
-    this.server.listen(WEB_SERVER_PORT, WEB_SERVER_LISTEN);
-    this.debug(`Listening on ${WEB_SERVER_LISTEN}:${WEB_SERVER_PORT}, path: ${WEB_SERVER_FILES}`);
+  tryToListen(retry = 0) {
+    return new Promise((resolve) => {
+
+      // Ensure we do not reach the max retry limit
+      if(retry >= this.maxRetryBeforeReject) {
+        return;
+      }
+
+      // Get a random port using Math.random
+      this.portToUse = Math.round(Math.random() * (65534 - 10000) + 10000) - 1;
+
+      // Listen on the port
+      this.debug(`Listening on ${WEB_SERVER_LISTEN}:${this.portToUse}, path: ${WEB_SERVER_FILES}`);
+      this.server.listen(this.portToUse, WEB_SERVER_LISTEN, () => {
+
+        // Everything is okay, resolving the promise
+        this.debug('Web server has started');
+        resolve();
+
+      }).on('error', (e) => {
+
+        // Port is probably taken, let's try again
+        if(typeof e !== 'undefined') {
+          this.debug(`Unable to listen on ${this.portToUse}, retrying with another port...`);
+          this.tryToListen(++retry);
+          return false;
+        }
+      });
+    });
   }
 }
 
@@ -143,6 +190,7 @@ class ElectronWrapperInit {
     this.browserWindow = false;
     this.browserWindowAbout = false;
     this.enteredWebapp = false;
+    this.webServerStarted = false;
     this.shouldQuit = false;
     this.webappVersion = false;
     this.raygunClient = false;
@@ -151,17 +199,8 @@ class ElectronWrapperInit {
     this.debug('webviewProtection init');
     this.webviewProtection();
 
-    this.debug('registerProtocols init');
-    this.registerProtocols();
-
-    this.debug('HTTPServer init');
-    this.webServer = new HTTPServer();
-
     this.debug('platformFixes init');
     this.platformFixes();
-
-    this.debug('ipcEvents init');
-    this.ipcEvents();
 
     this.debug('appEvents init');
     this.appEvents();
@@ -174,6 +213,19 @@ class ElectronWrapperInit {
 
     this.debug('show init');
     this.show();
+
+    this.debug('HTTPServer init');
+    this.runWebServer().then((res) => {
+
+      // Declare the webserver as started in this class once it is
+      this.webServerStarted = true;
+
+      this.debug('registerProtocols init');
+      this.registerProtocols(`http://${WEB_SERVER_LISTEN}:${res.usedPort}`);
+
+      this.debug('ipcEvents init');
+      this.ipcEvents();
+    });
   }
 
   // Used to forward wire:// requests to the returned URL
@@ -181,16 +233,16 @@ class ElectronWrapperInit {
 
     if (!argv.env && config.DEVELOPMENT) {
       switch(init.restore('env', config.INTERNAL)) {
+        //case config.PROD: return undefined;
         case config.DEV: return config.DEV_URL;
         case config.EDGE: return config.EDGE_URL;
         case config.INTERNAL: return config.INTERNAL_URL;
         case config.LOCALHOST: return config.LOCALHOST_URL;
-        case config.PROD: return config.PROD_URL;
         case config.STAGING: return config.STAGING_URL;
       }
     }
 
-    return argv.env || config.PROD_URL;
+    return undefined;
   }
 
   // <webview> hardening
@@ -215,13 +267,14 @@ class ElectronWrapperInit {
           ) {
           event.preventDefault();
         }
-      })
-    })
+      });
+    });
   }
 
   // Register protocols
-  registerProtocols() {
-    const baseURL = this.getBaseUrl();
+  registerProtocols(PROD_URL) {
+
+    const baseURL = this.getBaseUrl() || PROD_URL;
 
     // Register Wire protocol
     protocol.registerStandardSchemes(['wire'], {
@@ -246,6 +299,12 @@ class ElectronWrapperInit {
         }
       });
 
+    });
+  }
+
+  runWebServer() {
+    return new Promise((resolve) => {
+      this.webServer = new HTTPServer(resolve);
     });
   }
 
@@ -278,11 +337,6 @@ class ElectronWrapperInit {
       debugWebServer('%o', data);
     });
   }*/
-
-  runWebServer() {
-
-
-  }
 
   // Misc
   misc() {
@@ -352,9 +406,8 @@ class ElectronWrapperInit {
     ipcMain.once('load-webapp', () => {
       this.debug('load-webapp fired');
 
-      let baseURL = WEB_SERVER_HOST + '/index.html';
-      //baseURL += (baseURL.includes('?') ? '&' : '?') + 'hl=' + locale.getCurrent();
-      /*let isWebServerOnline = setInterval(() => {
+      let baseURL = WEB_SERVER_HOST + '/index.html?hl=' + locale.getCurrent();
+      let isWebServerOnline = setInterval(() => {
         this.debug('Checking if web server is online...');
 
         if(this.webServerStarted) {
@@ -364,9 +417,7 @@ class ElectronWrapperInit {
           this.browserWindow.loadURL(baseURL);
           this.enteredWebapp = true;
         }
-      }, 1000);*/
-      this.debug('Accessing %s', baseURL);
-      this.browserWindow.loadURL(baseURL);
+      }, 1000);
     });
 
     ipcMain.on('loaded', () => {

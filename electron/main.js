@@ -726,17 +726,19 @@ class BrowserWindowInit {
     });
   }
 
-  // Fix Access-Control-Allow-Origin for the web app
+  // Fix CORS
   fixCorsOnBackend() {
 
     this.browserWindow.webContents.session.webRequest.onHeadersReceived({urls: CONFIG.BACKEND_URLS}, (details, callback) => {
+      this.debug('Access-Control-Allow-Origin modified for backend');
 
-      this.debug('Access-Control-Allow-Origin disabled for backend');
-
-      //console.log(details);
+      // Override remote Access-Control-Allow-Origin
       details.responseHeaders['Access-Control-Allow-Origin'] = [ WEB_SERVER_HOST ];
 
-      callback({cancel: false, responseHeaders: details.responseHeaders});
+      callback({
+        cancel: false,
+        responseHeaders: details.responseHeaders
+      });
     });
   }
 };

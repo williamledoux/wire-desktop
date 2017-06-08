@@ -61,7 +61,6 @@ const WEB_SERVER_HOST = 'wire://127.0.0.1';
 const WEB_SERVER_FILES = path.join(USER_DATAS_PATH, 'app.wire.com.asar');
 
 // Config
-let PROD_URL;
 const argv = minimist(process.argv.slice(1));
 const config = require('./js/config');
 const ALLOWED_WEBVIEWS_ORIGIN = config.ALLOWED_WEBVIEWS_ORIGIN;
@@ -219,9 +218,10 @@ class ElectronWrapperInit {
 
       // Declare the webserver as started in this class once it is
       this.webServerStarted = true;
+      const PROD_URL = `http://${WEB_SERVER_LISTEN}:${res.usedPort}`;
 
       this.debug('registerProtocols init');
-      this.registerProtocols(`http://${WEB_SERVER_LISTEN}:${res.usedPort}`);
+      this.registerProtocols(PROD_URL);
 
       this.debug('ipcEvents init');
       this.ipcEvents();
@@ -298,7 +298,6 @@ class ElectronWrapperInit {
           throw new Error('Failed to register protocol');
         }
       });
-
     });
   }
 

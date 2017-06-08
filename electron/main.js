@@ -632,14 +632,10 @@ class BrowserWindowInit {
 
       if (this.enteredWebapp) {
 
-        setTimeout(() => {
-
-          this.browserWindow.webContents.send('webapp-loaded', {
-            electron_version: app.getVersion(),
-            notification_icon: path.join(app.getAppPath(), 'img', 'notification.png'),
-          });
-
-        }, 2000);
+        this.browserWindow.webContents.send('webapp-loaded', {
+          electron_version: app.getVersion(),
+          notification_icon: path.join(app.getAppPath(), 'img', 'notification.png'),
+        });
 
       } else {
         this.browserWindow.webContents.send('splash-screen-loaded');

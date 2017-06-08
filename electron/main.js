@@ -261,6 +261,7 @@ class ElectronWrapperInit {
   // Register protocols
   registerProtocols(PROD_URL) {
 
+    const registerProtocolsDebug = debug('ElectronWrapperInit:registerProtocols');
     const baseURL = this.getBaseUrl() || PROD_URL;
 
     // Register Wire protocol
@@ -276,7 +277,7 @@ class ElectronWrapperInit {
         const url = request.url.substr(WEB_SERVER_HOST.length).replace(/\/$/, '').replace(/^\//, '');
         const redirectPath = `${baseURL}/${url}`;
 
-        //this.debug('%s', redirectPath);
+        registerProtocolsDebug('%s', redirectPath);
 
         callback({ method: 'GET', url: redirectPath, referrer: '' });
 
@@ -296,14 +297,18 @@ class ElectronWrapperInit {
 
   // Misc
   misc() {
-    this.raygunClient = new raygun.Client().init({apiKey: config.RAYGUN_API_KEY});
+    const miscDebug = debug('ElectronWrapperInit:misc');
 
+    // Raygun settings
+    this.raygunClient = new raygun.Client().init({apiKey: config.RAYGUN_API_KEY});
     this.raygunClient.onBeforeSend((payload) => {
       delete payload.details.machineName;
       return payload;
     });
 
+    // Disable certificate verification in development env.
     if (config.DEVELOPMENT) {
+      miscDebug('WARNING: Certificate errors are ignored!');
       app.commandLine.appendSwitch('ignore-certificate-errors', 'true');
     }
   }
@@ -584,25 +589,26 @@ class BrowserWindowInit {
   }
 
   browserWindowListeners() {
+    const browserWindowListenersDebug = debug('BrowserWindowInit:browserWindowListeners');
 
     this.browserWindow.webContents.on('will-navigate', (event, url) => {
-      this.debug('will-navigate fired');
+      browserWindowListenersDebug('will-navigate fired');
 
       // Resize the window for auth
       if (url.startsWith(`${WEB_SERVER_HOST}/auth/`)) {
-        this.debug('Login page asked');
+        browserWindowListenersDebug('Login page asked');
         util.resizeToSmall(this.browserWindow);
         return;
       }
 
       // Allow access in the same window to wire://
       if(url.startsWith(`${WEB_SERVER_HOST}/`)) {
-        this.debug('Allowing access to wire://');
+        browserWindowListenersDebug('Allowing access to wire://');
 
         // Resize the window if needed
         let size = this.browserWindow.getSize();
         if (size[0] < config.MIN_WIDTH_MAIN || size[1] < config.MIN_HEIGHT_MAIN) {
-          this.debug('Resize to big window');
+          browserWindowListenersDebug('Resize to big window');
           util.resizeToBig(this.browserWindow);
         }
 
@@ -675,20 +681,19 @@ class BrowserWindowInit {
   // Restrict permissions for the current session
   // Also allow to detect events like fullscreen for Youtube
   sessionPermissionsHandling() {
-
-    const sessionDebug = debug('BrowserWindowInit:sessionPermissionsHandling');
+    const sessionPermissionsHandlingDebug = debug('BrowserWindowInit:sessionPermissionsHandling');
 
     this.browserWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
       const url = webContents.getURL();
 
       // Enums: 'media', 'geolocation', 'notifications', 'midiSysex', 'pointerLock', 'fullscreen', 'openExternal'
-      sessionDebug('URL: %s, Permission: %s', url, permission);
+      sessionPermissionsHandlingDebug('URL: %s, Permission: %s', url, permission);
 
       // Allow fullscreen for Youtube
       if(url.match(ALLOWED_WEBVIEWS_ORIGIN.youtube) &&
           permission === 'fullscreen') {
 
-        sessionDebug('Allowing fullscreen for Youtube');
+        sessionPermissionsHandlingDebug('Allowing fullscreen for Youtube');
 
         // Emit event to browser
         this.browserWindow.webContents.send('youtube-fullscreen', {link: url});
@@ -702,11 +707,13 @@ class BrowserWindowInit {
 
   // Certificate verification process
   setCertificateVerification() {
+    const setCertificateVerificationDebug = debug('BrowserWindowInit:setCertificateVerification');
+
     this.browserWindow.webContents.session.setCertificateVerifyProc((request, cb) => {
       const {hostname = '', certificate = {}, error} = request;
 
       if (typeof error !== 'undefined') {
-        this.debug('setCertificateVerifyProc', error);
+        setCertificateVerificationDebug('setCertificateVerifyProc', error);
         this.browserWindow.loadURL(CERT_ERR_HTML);
         return cb(-2);
       }
@@ -715,13 +722,14 @@ class BrowserWindowInit {
         const pinningResults = certutils.verifyPinning(hostname, certificate);
         for (const result of Object.values(pinningResults)) {
           if (result === false) {
-            this.debug(`Certutils verification failed for ${hostname}: ${result} is false`);
+            setCertificateVerificationDebug('Certutils verification failed for %s: %s is false', hostname, result);
             this.browserWindow.loadURL(CERT_ERR_HTML);
             return cb(-2);
           }
         }
       }
 
+      setCertificateVerificationDebug('Verification for %s is OK', hostname);
       return cb(-3);
     });
   }
@@ -729,7 +737,7 @@ class BrowserWindowInit {
   // Fix CORS
   fixCorsOnBackend() {
 
-    this.browserWindow.webContents.session.webRequest.onHeadersReceived({urls: CONFIG.BACKEND_URLS}, (details, callback) => {
+    this.browserWindow.webContents.session.webRequest.onHeadersReceived({urls: config.BACKEND_URLS}, (details, callback) => {
       this.debug('Access-Control-Allow-Origin modified for backend');
 
       // Override remote Access-Control-Allow-Origin

@@ -676,6 +676,35 @@ class BrowserWindowInit {
     windowManager.setPrimaryWindowId(browserWindow.id);
   }
 
+  // Restrict permissions for the current session
+  // Also allow to detect events like fullscreen for Youtube
+  sessionPermissionsHandling() {
+
+    const sessionDebug = debug('BrowserWindowInit:sessionPermissionsHandling');
+
+    this.browserWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+      const url = webContents.getURL();
+
+      // Enums: 'media', 'geolocation', 'notifications', 'midiSysex', 'pointerLock', 'fullscreen', 'openExternal'
+      sessionDebug('URL: %s, Permission: %s', url, permission);
+
+      // Allow fullscreen for Youtube
+      if(url.match(ALLOWED_WEBVIEWS_ORIGIN.youtube) &&
+          permission === 'fullscreen') {
+
+        sessionDebug('Allowing fullscreen for Youtube');
+
+        // Emit event to browser
+        this.browserWindow.webContents.send('youtube-fullscreen', {link: url});
+
+        return callback(true);
+      }
+
+      return callback(false);
+    });
+  }
+
+  // Certificate verification process
   setCertificateVerification() {
     this.browserWindow.webContents.session.setCertificateVerifyProc((request, cb) => {
       const {hostname = '', certificate = {}, error} = request;

@@ -553,6 +553,9 @@ class BrowserWindowInit {
     // Load the splash
     this.browserWindow.loadURL(SPLASH_HTML);
 
+    // Session handling
+    this.sessionPermissionsHandling();
+
     // Set certificate pinning verifications
     this.setCertificateVerification();
 

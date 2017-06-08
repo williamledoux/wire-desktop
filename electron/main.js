@@ -729,10 +729,7 @@ class BrowserWindowInit {
   // Fix Access-Control-Allow-Origin for the web app
   fixCorsOnBackend() {
 
-    this.browserWindow.webContents.session.webRequest.onHeadersReceived({urls: [
-      'https://prod-nginz-https.wire.com/*',
-      'https://staging-nginz-https.zinfra.io/*',
-    ]}, (details, callback) => {
+    this.browserWindow.webContents.session.webRequest.onHeadersReceived({urls: CONFIG.BACKEND_URLS}, (details, callback) => {
 
       this.debug('Access-Control-Allow-Origin disabled for backend');
 

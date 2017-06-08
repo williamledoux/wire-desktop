@@ -61,6 +61,11 @@ let config = {
     youtube: /(?:youtube(?:-nocookie|)\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\/?\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/g,
   },
 
+  BACKEND_URLS: [
+    'https://prod-nginz-https.wire.com/*',
+    'https://staging-nginz-https.zinfra.io/*',
+  ],
+
   WHITE_LIST: [
     'https://www.wire.com/',
     'https://wire.com/',

@@ -215,9 +215,6 @@ class ElectronWrapperInit {
 
     this.debug('runWebServer init');
     this.runWebServer().then((res) => {
-
-      // Declare the webserver as started in this class once it is
-      this.webServerStarted = true;
       const PROD_URL = `http://${WEB_SERVER_LISTEN}:${res.usedPort}`;
 
       this.debug('registerProtocols init');
@@ -289,7 +286,7 @@ class ElectronWrapperInit {
         const url = request.url.substr(WEB_SERVER_HOST.length).replace(/\/$/, '').replace(/^\//, '');
         const redirectPath = `${baseURL}/${url}`;
 
-        this.debug('%s', redirectPath);
+        //this.debug('%s', redirectPath);
 
         callback({ method: 'GET', url: redirectPath, referrer: '' });
 
@@ -372,28 +369,12 @@ class ElectronWrapperInit {
   // IPC events
   ipcEvents() {
 
-    ipcMain.once('load-webapp', () => {
-      this.debug('load-webapp fired');
-
-      let baseURL = WEB_SERVER_HOST + '/index.html?hl=' + locale.getCurrent();
-      let isWebServerOnline = setInterval(() => {
-        this.debug('Checking if web server is online...');
-
-        if(this.webServerStarted) {
-          clearInterval(isWebServerOnline);
-
-          this.debug('Accessing %s', baseURL);
-          this.browserWindow.loadURL(baseURL);
-          this.enteredWebapp = true;
-        }
-      }, 1000);
-    });
-
     ipcMain.on('loaded', () => {
       this.debug('loaded fired');
 
       let size = this.browserWindow.getSize();
       if (size[0] < config.MIN_WIDTH_MAIN || size[1] < config.MIN_HEIGHT_MAIN) {
+        this.debug('Resize to big window');
         util.resizeToBig(this.browserWindow);
       }
     });
@@ -438,6 +419,25 @@ class ElectronWrapperInit {
         app.exit();
       });
     }
+
+    ipcMain.once('load-webapp', () => {
+      this.debug('load-webapp fired');
+
+      let baseURL = WEB_SERVER_HOST + '/index.html?hl=' + locale.getCurrent();
+      /*let isWebServerOnline = setInterval(() => {
+        this.debug('Checking if web server is online...');
+
+        if(this.webServerStarted) {
+          clearInterval(isWebServerOnline);
+
+          this.debug('Accessing %s', baseURL);
+          this.browserWindow.loadURL(baseURL);
+          this.enteredWebapp = true;
+        }
+      }, 1000);*/
+      this.debug('Accessing %s', baseURL);
+      this.browserWindow.loadURL(baseURL);
+    });
   }
 
   showMainWindow() {

@@ -17,15 +17,6 @@
  *
  */
 
-// ToDo: Make YT videos fullscreen?
-// ToDo: Full sandbox check (webview / webframe / desktopsharing)
-// ToDo: See for the Electron crash protocol fix
-// ToDo: Start working on app updating process
-// ToDo: Refactor preload.js
-// ToDo: Add port changing logic if the port is taken for the web server
-// ToDo: Find a better way to generate random numbers
-// ToDo: CORS on local network (add same CSP as app.wire.com)
-
 'use strict';
 
 // Modules
@@ -108,8 +99,7 @@ class HTTPServer {
   constructor(resolve) {
 
     this.debug = debug('HTTPServer');
-    this.resolve = resolve;
-    this.maxRetryBeforeReject = 3;
+    this.maxRetryBeforeReject = 10;
 
     // Prepare serveStatic to serve up public folder
     this.serve = serveStatic(WEB_SERVER_FILES, {
@@ -133,10 +123,9 @@ class HTTPServer {
 
     // Start the webserver
     this.debug('tryToListen init');
-    this.tryToListen().then(() => {
-      this.debug('tryToListen OK');
+    this.tryToListen().then((usedPort) => {
       resolve({
-        usedPort: this.portToUse
+        usedPort: usedPort
       });
     });
 
@@ -150,29 +139,30 @@ class HTTPServer {
   }
 
   tryToListen(retry = 0) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
 
       // Ensure we do not reach the max retry limit
       if(retry >= this.maxRetryBeforeReject) {
+        reject();
         return;
       }
 
       // Get a random port using Math.random
-      this.portToUse = Math.round(Math.random() * (65534 - 10000) + 10000) - 1;
+      const portToUse = Math.round(Math.random() * (65534 - 10000) + 10000) - 1;
 
       // Listen on the port
-      this.debug(`Listening on ${WEB_SERVER_LISTEN}:${this.portToUse}, path: ${WEB_SERVER_FILES}`);
-      this.server.listen(this.portToUse, WEB_SERVER_LISTEN, () => {
+      this.debug(`Listening on ${WEB_SERVER_LISTEN}:${portToUse}, path: ${WEB_SERVER_FILES}`);
+      this.server.listen(portToUse, WEB_SERVER_LISTEN, () => {
 
         // Everything is okay, resolving the promise
         this.debug('Web server has started');
-        resolve();
+        resolve(portToUse);
 
       }).on('error', (e) => {
 
         // Port is probably taken, let's try again
         if(typeof e !== 'undefined') {
-          this.debug(`Unable to listen on ${this.portToUse}, retrying with another port...`);
+          this.debug(`Unable to listen on ${portToUse}, retrying with another port...`);
           this.tryToListen(++retry);
           return false;
         }
@@ -414,17 +404,6 @@ class ElectronWrapperInit {
       this.debug('load-webapp fired');
 
       let baseURL = WEB_SERVER_HOST + '/index.html?hl=' + locale.getCurrent();
-      /*let isWebServerOnline = setInterval(() => {
-        this.debug('Checking if web server is online...');
-
-        if(this.webServerStarted) {
-          clearInterval(isWebServerOnline);
-
-          this.debug('Accessing %s', baseURL);
-          this.browserWindow.loadURL(baseURL);
-          this.enteredWebapp = true;
-        }
-      }, 1000);*/
       this.debug('Accessing %s', baseURL);
       this.browserWindow.loadURL(baseURL);
     });

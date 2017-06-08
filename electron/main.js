@@ -213,7 +213,7 @@ class ElectronWrapperInit {
     this.debug('show init');
     this.show();
 
-    this.debug('HTTPServer init');
+    this.debug('runWebServer init');
     this.runWebServer().then((res) => {
 
       // Declare the webserver as started in this class once it is
@@ -306,36 +306,6 @@ class ElectronWrapperInit {
       this.webServer = new HTTPServer(resolve);
     });
   }
-
-  // Run the web server
-  /*runWebServer() {
-
-    const debugWebServer = debug('ElectronWrapperInit:webServer');
-    const pathToServerFile = path.join(APP_PATH, 'server.js');
-    const serverArgs = [
-      '--path', WEB_SERVER_FILES,
-      '--port', WEB_SERVER_PORT
-    ];
-    debugWebServer('Launching %s with %o as args', pathToServerFile, serverArgs);
-
-    const server = fork(pathToServerFile, serverArgs, {
-        // Only allow ipc communications
-        stdio: [null, null, null, 'ipc'],
-    });
-
-    server.on('error', (err) => {
-      debugWebServer('Error: %s', err);
-    });
-    server.on('message', (data) => {
-      data = JSON.parse(data);
-
-      if(data.started) {
-        this.webServerStarted = true;
-      }
-
-      debugWebServer('%o', data);
-    });
-  }*/
 
   // Misc
   misc() {
@@ -766,38 +736,6 @@ class BrowserWindowInit {
 
       callback({cancel: false, responseHeaders: details.responseHeaders});
     });
-
-    // Modify all requests to the following urls.
-    /*const filter = {
-      urls: ['https://prod-nginz-https.wire.com/*'] // add /access
-    };
-
-    // Handle the cookie
-    let zuid;
-    main.webContents.session.webRequest.onBeforeSendHeaders({urls: ['https://prod-nginz-https.wire.com/access*']}, (details, callback) => {
-      console.log('access nginz');
-
-      console.log(details);
-
-      // Set cookie for the /access
-      //details.responseHeaders['Cookie'] = zuid;
-
-      console.log(details);
-
-      const response = {cancel: false, responseHeaders: details.responseHeaders};
-      callback(response);
-    });
-    main.webContents.session.webRequest.onHeadersReceived({urls: ['https://prod-nginz-https.wire.com/login*']}, (details, callback) => {
-      console.log('login cors');
-      console.log(details);
-
-      // Set the cookie
-      zuid = details.responseHeaders['Set-Cookie'][0].split(';')[0] + ';';
-
-      const response = {cancel: false, responseHeaders: details.responseHeaders};
-      callback(response);
-    });
-    */
   }
 };
 

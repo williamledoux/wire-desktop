@@ -53,64 +53,6 @@ process.once('loaded', () => {
   global.setImmediate = _setImmediate;
   global.openGraph = require('./lib/openGraph');
   global.desktopCapturer = desktopCapturer;
-
-  /*global.desktopCapturer = {
-
-    // desktopCapturer: https://discuss.atom.io/t/use-desktopcapturer-in-sandboxed-renderer-process/41536/2
-
-    getSources: (options, callback) => {
-
-      var nextId = 0;
-      var includes = [].includes;
-
-      function getNextId() {
-        return ++nextId;
-      }
-
-      // |options.type| can not be empty and has to include 'window' or 'screen'.
-      function isValid(options) {
-        return ((options != null ? options.types : void 0) != null) && Array.isArray(options.types);
-      }
-
-      let captureScreen, captureWindow, id;
-
-      if (!isValid(options)) {
-        return callback(new Error('Invalid options'));
-      }
-
-      captureWindow = includes.call(options.types, 'window');
-      captureScreen = includes.call(options.types, 'screen');
-      if (options.thumbnailSize == null) {
-        options.thumbnailSize = {
-          width: 150,
-          height: 150
-        }
-      }
-
-      id = getNextId();
-
-      local.ipcRenderer.send('ELECTRON_BROWSER_DESKTOP_CAPTURER_GET_SOURCES', captureWindow, captureScreen, options.thumbnailSize, id);
-
-      return local.ipcRenderer.once('ELECTRON_RENDERER_DESKTOP_CAPTURER_RESULT_' + id, (event, sources) => {
-        let source;
-
-        callback(null, (() => {
-          var i, len, results
-          results = [];
-          for (i = 0, len = sources.length; i < len; i++) {
-            source = sources[i]
-            results.push({
-              id: source.id,
-              name: source.name,
-              thumbnail: source.thumbnail
-            });
-          }
-          return results;
-        })())
-      })
-    }
-
-  };*/
   global.winston = require('winston');
 
   const logFilePath = path.join(app.getPath('userData'), require('./config').CONSOLE_LOG);

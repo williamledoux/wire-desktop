@@ -19,28 +19,35 @@
 
 'use strict';
 
+// Modules
 const {app, BrowserWindow, ipcMain, Menu, shell, protocol} = require('electron');
-
 const fs = require('fs');
 const minimist = require('minimist');
 const path = require('path');
 const raygun = require('raygun');
 const debug = require('debug');
-const fork = require('child_process').fork;
+//const fork = require('child_process').fork;
+const finalhandler = require('finalhandler');
+const http = require('http');
+const serveStatic = require('serve-static');
 
+// Paths
 const APP_PATH = app.getAppPath();
 const USER_DATAS_PATH = app.getPath('userData');
 
+// Web server options
 const WEB_SERVER_PORT = Math.floor(Math.random() * 55535) + 10000;
 const WEB_SERVER_LISTEN = '127.0.0.1';
 const WEB_SERVER_HOST = 'wire://127.0.0.1';
-const WEB_SERVER_FILES = path.join(USER_DATAS_PATH, 'app.wire.com');
+const WEB_SERVER_FILES = path.join(USER_DATAS_PATH, 'app.wire.com.asar');
 
-const certutils = require('./js/certutils');
-
+// Config
 const config = require('./js/config');
 config.PROD_URL = `http://${WEB_SERVER_LISTEN}:${WEB_SERVER_PORT}`;
+const ALLOWED_WEBVIEWS_ORIGIN = config.ALLOWED_WEBVIEWS_ORIGIN;
 
+// Wrapper modules
+const certutils = require('./js/certutils');
 const download = require('./js/lib/download');
 const googleAuth = require('./js/lib/googleAuth');
 const init = require('./js/lib/init');
@@ -56,6 +63,7 @@ const argv = minimist(process.argv.slice(1));
 const PRELOAD_JS = path.join(APP_PATH, 'js', 'preload.js');
 const WRAPPER_CSS = path.join(APP_PATH, 'css', 'wrapper.css');
 
+// Static pages
 const SPLASH_HTML = 'file://' + path.join(APP_PATH, 'html', 'splash.html');
 const CERT_ERR_HTML = 'file://' + path.join(APP_PATH, 'html', 'certificate-error.html');
 const ABOUT_HTML = 'file://' + path.join(APP_PATH, 'html', 'about.html');
@@ -63,7 +71,69 @@ const ABOUT_HTML = 'file://' + path.join(APP_PATH, 'html', 'about.html');
 const ICON = 'wire.' + ((process.platform === 'win32') ? 'ico' : 'png');
 const ICON_PATH = path.join(APP_PATH, 'img', ICON);
 
-const ALLOWED_WEBVIEWS_ORIGIN = config.ALLOWED_WEBVIEW;
+// Web server CSP
+const CSP = [
+    "default-src 'none'",
+    "connect-src 'self' blob: https://*.giphy.com https://apis.google.com https://www.google.com https://maps.googleapis.com https://*.localytics.com https://api.raygun.io https://*.unsplash.com https://wire.com https://*.wire.com wss://prod-nginz-ssl.wire.com https://*.zinfra.io wss://*.zinfra.io",
+    "font-src 'self'",
+    //"frame-src 'self' https://accounts.google.com https://*.soundcloud.com https://*.spotify.com https://*.vimeo.com https://*.youtube-nocookie.com",
+    "img-src 'self' blob: data: https://*.giphy.com https://*.localytics.com https://*.wire.com https://*.cloudfront.net https://*.zinfra.io",
+    // Note: The "blob:" attribute needs to be explicitly set for Chrome 47+: https://code.google.com/p/chromium/issues/detail?id=473904
+    "media-src blob: data: *",
+    "object-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.localytics.com https://api.raygun.io https://*.wire.com https://*.zinfra.io",
+    "style-src 'self' 'unsafe-inline' https://*.wire.com",
+
+    // Future options
+    "worker-src 'self'", // Disabled for now in Chrome behind a flag
+    //"referrer no-referrer",
+    //"reflected-xss block",
+    //"disown-opener",
+    //"require-sri-for script style",
+
+    // Broken because of <webview>
+    //"sandbox allow-scripts allow-forms allow-same-origin",
+
+    // Electron related
+    //"plugin-types application/browser-plugin" // Allow to extend object feature (webview)
+  ].join(';');
+
+class HTTPServer {
+
+  constructor() {
+    this.debug = debug('HTTPServer');
+
+    // Serve up public folder
+    this.serve = serveStatic(WEB_SERVER_FILES, {
+      index: ['index.html'],
+      setHeaders: (res, path) => {
+
+        // Add security-related headers
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('X-Frame-Options', 'deny');
+        res.setHeader('X-XSS-Protection', '1; mode=block');
+        res.setHeader('Referrer-Header', 'no-referrer');
+        res.setHeader('Content-Security-Policy', CSP);
+      }
+    });
+
+    this.createServer();
+    this.listen();
+
+    return this.server;
+  }
+
+  createServer() {
+    this.server = http.createServer((req, res) => {
+      this.serve(req, res, finalhandler(req, res));
+    });
+  }
+
+  listen() {
+    this.server.listen(WEB_SERVER_PORT, WEB_SERVER_LISTEN);
+    this.debug(`Listening on ${WEB_SERVER_LISTEN}:${WEB_SERVER_PORT}, path: ${WEB_SERVER_FILES}`);
+  }
+}
 
 class ElectronWrapperInit {
 
@@ -76,7 +146,6 @@ class ElectronWrapperInit {
     this.shouldQuit = false;
     this.webappVersion = false;
     this.raygunClient = false;
-    this.webServerStarted = false;
     this.debug = debug('ElectronWrapperInit');
 
     this.debug('webviewProtection init');
@@ -85,8 +154,8 @@ class ElectronWrapperInit {
     this.debug('registerProtocols init');
     this.registerProtocols();
 
-    this.debug('runWebServer init');
-    this.runWebServer();
+    this.debug('HTTPServer init');
+    this.webServer = new HTTPServer();
 
     this.debug('platformFixes init');
     this.platformFixes();
@@ -179,14 +248,18 @@ class ElectronWrapperInit {
   }
 
   // Run the web server
-  runWebServer() {
+  /*runWebServer() {
 
     const debugWebServer = debug('ElectronWrapperInit:webServer');
-    const server = fork(path.join(APP_PATH, 'server.js'),
-    [
+    const pathToServerFile = path.join(APP_PATH, 'server.js');
+    const serverArgs = [
       '--path', WEB_SERVER_FILES,
       '--port', WEB_SERVER_PORT
-    ], {
+    ];
+    debugWebServer('Launching %s with %o as args', pathToServerFile, serverArgs);
+
+    const server = fork(pathToServerFile, serverArgs, {
+        // Only allow ipc communications
         stdio: [null, null, null, 'ipc'],
     });
 
@@ -202,6 +275,11 @@ class ElectronWrapperInit {
 
       debugWebServer('%o', data);
     });
+  }*/
+
+  runWebServer() {
+
+
   }
 
   // Misc
@@ -274,8 +352,7 @@ class ElectronWrapperInit {
 
       let baseURL = WEB_SERVER_HOST + '/index.html';
       //baseURL += (baseURL.includes('?') ? '&' : '?') + 'hl=' + locale.getCurrent();
-
-      let isWebServerOnline = setInterval(() => {
+      /*let isWebServerOnline = setInterval(() => {
         this.debug('Checking if web server is online...');
 
         if(this.webServerStarted) {
@@ -285,7 +362,9 @@ class ElectronWrapperInit {
           this.browserWindow.loadURL(baseURL);
           this.enteredWebapp = true;
         }
-      }, 1000);
+      }, 1000);*/
+      this.debug('Accessing %s', baseURL);
+      this.browserWindow.loadURL(baseURL);
     });
 
     ipcMain.on('loaded', () => {

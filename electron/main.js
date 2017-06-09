@@ -235,11 +235,11 @@ class ElectronWrapperInit {
     });
 
     // Disable certificate verification in development env.
-    miscDebug('Development mode? %s', config.DEVELOPMENT);
+    /*miscDebug('Development mode? %s', config.DEVELOPMENT);
     if (config.DEVELOPMENT) {
       miscDebug('WARNING: Certificate errors are ignored!');
       app.commandLine.appendSwitch('ignore-certificate-errors', 'true');
-    }
+    }*/
   }
 
   platformFixes() {
@@ -718,7 +718,7 @@ class BrowserWindowInit {
   addAuthTokenToLocalRequests() {
     this.browserWindow.webContents.session.webRequest.onBeforeSendHeaders({urls: `${WEB_SERVER_HOST}/*`}, (details, callback) => {
 
-      // Append the Authorization header for local requests only
+      // Append the Authorization header for build-in local server only
       if(details.url.startsWith(`${this.PROD_URL}/`)) {
         details.requestHeaders['Authorization'] = `${WEB_SERVER_TOKEN_NAME} ${this.accessToken}`;
       }

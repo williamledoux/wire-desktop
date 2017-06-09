@@ -151,7 +151,7 @@ class HTTPServer {
       const portToUse = Math.round(Math.random() * (65534 - 10000) + 10000) - 1;
 
       // Listen on the port
-      this.debug(`Listening on ${WEB_SERVER_LISTEN}:${portToUse}, path: ${WEB_SERVER_FILES}`);
+      this.debug('Listening on %s:%d, path: %s', WEB_SERVER_LISTEN, portToUse, WEB_SERVER_FILES);
       this.server.listen(portToUse, WEB_SERVER_LISTEN, () => {
 
         // Everything is okay, resolving the promise
@@ -162,7 +162,7 @@ class HTTPServer {
 
         // Port is probably taken, let's try again
         if(typeof e !== 'undefined') {
-          this.debug(`Unable to listen on ${portToUse}, retrying with another port...`);
+          this.debug('Unable to listen on %d, retrying with another port...', portToUse);
           this.tryToListen(++retry);
           return false;
         }
@@ -657,8 +657,11 @@ class BrowserWindowInit {
     });
 
     this.browserWindow.on('close', (event) => {
-      init.save('fullscreen', this.browserWindow.isFullScreen());
-      if (!this.browserWindow.isFullScreen()) {
+
+      const isFullScreen = this.browserWindow.isFullScreen();
+
+      init.save('fullscreen', isFullScreen);
+      if (!isFullScreen) {
         init.save('bounds', this.browserWindow.getBounds());
       }
 
@@ -712,12 +715,14 @@ class BrowserWindowInit {
     this.browserWindow.webContents.session.setCertificateVerifyProc((request, cb) => {
       const {hostname = '', certificate = {}, error} = request;
 
+      // An error already happened
       if (typeof error !== 'undefined') {
         setCertificateVerificationDebug('setCertificateVerifyProc', error);
         this.browserWindow.loadURL(CERT_ERR_HTML);
         return cb(-2);
       }
 
+      // Certificate pinning
       if (certutils.hostnameShouldBePinned(hostname)) {
         const pinningResults = certutils.verifyPinning(hostname, certificate);
         for (const result of Object.values(pinningResults)) {
@@ -736,9 +741,10 @@ class BrowserWindowInit {
 
   // Fix CORS
   fixCorsOnBackend() {
+    const fixCorsOnBackendDebug = debug('BrowserWindowInit:fixCorsOnBackend');
 
     this.browserWindow.webContents.session.webRequest.onHeadersReceived({urls: config.BACKEND_URLS}, (details, callback) => {
-      this.debug('Access-Control-Allow-Origin modified for backend');
+      fixCorsOnBackendDebug('Access-Control-Allow-Origin modified for a backend request');
 
       // Override remote Access-Control-Allow-Origin
       details.responseHeaders['Access-Control-Allow-Origin'] = [ WEB_SERVER_HOST ];

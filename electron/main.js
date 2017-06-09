@@ -29,6 +29,7 @@ const debug = require('debug');
 const finalhandler = require('finalhandler');
 const http = require('http');
 const serveStatic = require('serve-static');
+const crypto = require('crypto');
 
 // Paths
 const APP_PATH = app.getAppPath();
@@ -50,6 +51,7 @@ const windowManager = require('./js/window-manager');
 const WEB_SERVER_LISTEN = '127.0.0.1';
 const WEB_SERVER_HOST = 'wire://prod.local';
 const WEB_SERVER_FILES = path.join(USER_DATAS_PATH, 'app.wire.com.asar');
+const WEB_SERVER_TOKEN_NAME = 'Local';
 
 // Config
 const argv = minimist(process.argv.slice(1));
@@ -91,7 +93,7 @@ const CSP = [
     //"sandbox allow-scripts allow-forms allow-same-origin",
 
     // Electron related
-    //"plugin-types application/browser-plugin" // Allow to extend object feature (webview)
+    //"plugin-types application/browser-plugin" // Allow to extend object feature (webview) (only needed if sandbox)
   ].join(';');
 
 class HTTPServer {
@@ -100,6 +102,7 @@ class HTTPServer {
 
     this.debug = debug('HTTPServer');
     this.maxRetryBeforeReject = 10;
+    this.accessToken = false;
 
     // Prepare serveStatic to serve up public folder
     this.serve = serveStatic(WEB_SERVER_FILES, {
@@ -118,22 +121,75 @@ class HTTPServer {
       }
     });
 
+    // Ensure WEB_SERVER_TOKEN_NAME is alphanumeric only
+    if(!WEB_SERVER_TOKEN_NAME.match(/^[a-zA-Z0-9]*$/)) {
+      this.debug('Token name must be alphanumeric, aborting');
+      return false;
+    }
+
     // Create the HTTP server
     this.createServer();
 
-    // Start the webserver
-    this.debug('tryToListen init');
-    this.tryToListen().then((usedPort) => {
-      resolve({
-        usedPort: usedPort
+    // Generate the credentials that will be used to validate HTTP requests
+    this.generateToken().then((token) => {
+
+      // Expose the token to the class
+      this.accessToken = token;
+
+      // Start the webserver
+      this.debug('Web server is starting');
+      return this.tryToListen();
+
+    }).then((usedPort, accessToken) => {
+      this.debug('Web server has started');
+
+      if(resolve) {
+        resolve({
+          usedPort: usedPort,
+          accessToken: this.accessToken,
+        });
+      }
+    });
+  }
+
+  generateToken() {
+    return new Promise((resolve, reject) => {
+      crypto.randomBytes(128, (err, buffer) => {
+        if(err) {
+          reject(err);
+          return false;
+        }
+        resolve(buffer.toString('base64'));
       });
     });
-
-    return this.server;
   }
 
   createServer() {
+    const createServerDebug = debug('ElectronWrapperInit:createServer');
+
+    // Terminate the connection
+    const end = (res) => {
+        res.socket.end();
+        res.end();
+    };
+
     this.server = http.createServer((req, res) => {
+      const authorizationHeader = req.headers['authorization'];
+
+      // Don't accept requests if accessToken or Authorization header is not a string
+      if(typeof this.accessToken !== 'string' || typeof authorizationHeader !== 'string') {
+        createServerDebug('Cancelled a request because accessToken and/or authorization header was empty');
+        return end(res);
+      }
+
+      // Check the token
+      if(this.accessToken !== authorizationHeader.replace(new RegExp(`^${WEB_SERVER_TOKEN_NAME} `, 'g'), '')) {
+        createServerDebug('Cancelled a request because Authorization header was invalid');
+        return end(res);
+      }
+
+      // Serve the file normally
+      //createServerDebug('Serving an authorized request');
       this.serve(req, res, finalhandler(req, res));
     });
   }
@@ -155,16 +211,14 @@ class HTTPServer {
       this.server.listen(portToUse, WEB_SERVER_LISTEN, () => {
 
         // Everything is okay, resolving the promise
-        this.debug('Web server has started');
         resolve(portToUse);
 
-      }).on('error', (e) => {
+      }).once('error', (e) => {
 
         // Port is probably taken, let's try again
         if(typeof e !== 'undefined') {
           this.debug('Unable to listen on %d, retrying with another port...', portToUse);
-          this.tryToListen(++retry);
-          return false;
+          return this.tryToListen(++retry);
         }
       });
     });
@@ -179,7 +233,6 @@ class ElectronWrapperInit {
     this.browserWindow = false;
     this.browserWindowAbout = false;
     this.enteredWebapp = false;
-    this.webServerStarted = false;
     this.shouldQuit = false;
     this.webappVersion = false;
     this.raygunClient = false;
@@ -200,22 +253,43 @@ class ElectronWrapperInit {
     this.debug('menus init');
     this.menus();
 
-    this.debug('show init');
-    this.show();
+    this.debug('showMainWindow init');
+    this.showMainWindow();
 
     this.debug('runWebServer init');
     this.runWebServer().then((res) => {
+
+      // URL for production is the local web server
       const PROD_URL = `http://${WEB_SERVER_LISTEN}:${res.usedPort}`;
 
+      // Register the wire:// protocol
       this.debug('registerProtocols init');
       this.registerProtocols(PROD_URL);
 
+      // Expose the accessToken and PROD_URL to the BrowserWindowInit class
+      this.debug('Token is %s', res.accessToken);
+      app.once('ready', () => {
+
+        if(!this.main) {
+          this.debug('Unable to set datas in the BrowserWindowInit class, requests to the web server will likely fail!');
+          return;
+        }
+
+        this.main.accessToken = res.accessToken;
+        this.debug('Token has been set');
+
+        this.main.PROD_URL = PROD_URL;
+        this.debug('PROD_URL has been set');
+      });
+
+      // Register IPC events
+      // (including the load-webapp event which is the event that will load the webapp)
       this.debug('ipcEvents init');
       this.ipcEvents();
     });
   }
 
-  // Used to forward wire:// requests to the returned URL
+  // Used to forward wire:// requests
   getBaseUrl() {
 
     if (!argv.env && config.DEVELOPMENT) {
@@ -234,25 +308,29 @@ class ElectronWrapperInit {
 
   // <webview> hardening
   webviewProtection() {
+    const webviewProtectionDebug = debug('ElectronWrapperInit:webviewProtection');
+
     app.on('web-contents-created', (event, contents) => {
       contents.on('will-attach-webview', (event, webPreferences, params) => {
+        const url = params.src;
 
-        // Strip away preload scripts as they are unused
+        // Strip away preload scripts as they represent a security risk
         delete webPreferences.preload;
         delete webPreferences.preloadURL;
 
-        // Secure defaults
+        // Use secure defaults
         webPreferences.nodeIntegration = false;
         webPreferences.sandboxed = true;
         webPreferences.contextIsolation = true;
 
-        // Verify URL being loaded
-        if (!params.src.match(ALLOWED_WEBVIEWS_ORIGIN.soundcloud) &&
-            !params.src.match(ALLOWED_WEBVIEWS_ORIGIN.spotify) &&
-            !params.src.match(ALLOWED_WEBVIEWS_ORIGIN.vimeo) &&
-            !params.src.match(ALLOWED_WEBVIEWS_ORIGIN.youtube)
+        // Verify the URL being loaded
+        if (!url.match(ALLOWED_WEBVIEWS_ORIGIN.soundcloud) &&
+            !url.match(ALLOWED_WEBVIEWS_ORIGIN.spotify) &&
+            !url.match(ALLOWED_WEBVIEWS_ORIGIN.vimeo) &&
+            !url.match(ALLOWED_WEBVIEWS_ORIGIN.youtube)
           ) {
-          event.preventDefault();
+            webviewProtectionDebug('Prevented to show an unauthorized <webview>. URL: %s', url);
+            event.preventDefault();
         }
       });
     });
@@ -291,7 +369,7 @@ class ElectronWrapperInit {
 
   runWebServer() {
     return new Promise((resolve) => {
-      this.webServer = new HTTPServer(resolve);
+      (new HTTPServer(resolve));
     });
   }
 
@@ -414,11 +492,6 @@ class ElectronWrapperInit {
     });
   }
 
-  showMainWindow() {
-    this.main = new BrowserWindowInit();
-    this.browserWindow = this.main.browserWindow;
-  }
-
   showAboutWindow() {
 
     if (!this.browserWindowAbout) {
@@ -485,9 +558,12 @@ class ElectronWrapperInit {
   }
 
   // Show main window
-  show() {
+  showMainWindow() {
     app.on('ready', () => {
-      this.showMainWindow();
+      this.main = new BrowserWindowInit();
+      this.browserWindow = this.main.browserWindow;
+
+      this.main.show();
     });
   }
 
@@ -509,6 +585,7 @@ class BrowserWindowInit {
 
     this.debug = debug('BrowserWindowInit');
     this.quitting = false;
+    this.accessToken = false;
 
     // Start the renderer
     this.browserWindow = new BrowserWindow({
@@ -549,14 +626,15 @@ class BrowserWindowInit {
       },
     });
 
+    // Show the splash
+    this.browserWindow.loadURL(SPLASH_HTML);
+
+    // Restore previous window size
     if (init.restore('fullscreen', false)) {
       this.browserWindow.setFullScreen(true);
     } else {
       this.browserWindow.setBounds(init.restore('bounds', this.browserWindow.getBounds()));
     }
-
-    // Load the splash
-    this.browserWindow.loadURL(SPLASH_HTML);
 
     // Session handling
     this.sessionPermissionsHandling();
@@ -567,25 +645,33 @@ class BrowserWindowInit {
     // Fix CORS on backend
     this.fixCorsOnBackend();
 
+    // Add Authorization token
+    this.addAuthTokenToLocalRequests();
+
+    // Browser window listeners
+    this.browserWindowListeners();
+  }
+
+  // Show the main window
+  show() {
+
     // Open dev tools if asked
     if (argv.devtools) {
       this.browserWindow.webContents.openDevTools();
     }
 
-    // Show the main window
     if (!argv.startup && !argv.hidden) {
+
       if (!util.isInView(this.browserWindow)) {
         this.browserWindow.center();
       }
 
       this.discloseWindowID(this.browserWindow);
+
       this.browserWindow.on('ready-to-show', () => {
         this.browserWindow.show();
       });
     }
-
-    // Browser window listeners
-    this.browserWindowListeners();
   }
 
   getWrapperStyle() {
@@ -652,20 +738,19 @@ class BrowserWindowInit {
         this.browserWindow.webContents.insertCSS(css);
         browserWindowListenersDebug('Successfully added wrapper CSS');
       }).catch((err) => {
-        browserWindowListenersDebug('WARNING: Unable to add wrapper CSS into the webapp! Error: %s', err);
+        browserWindowListenersDebug('WARNING: Unable to add wrapper CSS into the webapp! Error: %o', err);
       });
 
-      if (this.enteredWebapp) {
-
-        this.browserWindow.webContents.send('webapp-loaded', {
-          electron_version: app.getVersion(),
-          notification_icon: path.join(app.getAppPath(), 'img', 'notification.png'),
-        });
-
-      } else {
-
+      if (!this.enteredWebapp) {
         this.browserWindow.webContents.send('splash-screen-loaded');
+        return;
       }
+
+      // Webapp loaded
+      this.browserWindow.webContents.send('webapp-loaded', {
+        electron_version: app.getVersion(),
+        notification_icon: path.join(app.getAppPath(), 'img', 'notification.png'),
+      });
     });
 
     this.browserWindow.on('focus', () => {
@@ -719,7 +804,9 @@ class BrowserWindowInit {
         sessionPermissionsHandlingDebug('Allowing fullscreen for Youtube');
 
         // Emit event to browser
-        this.browserWindow.webContents.send('youtube-fullscreen', {link: url});
+        this.browserWindow.webContents.send('youtube-fullscreen', {
+          link: url
+        });
 
         return callback(true);
       }
@@ -773,6 +860,19 @@ class BrowserWindowInit {
         cancel: false,
         responseHeaders: details.responseHeaders
       });
+    });
+  }
+
+  // Add Authorization token
+  addAuthTokenToLocalRequests() {
+    this.browserWindow.webContents.session.webRequest.onBeforeSendHeaders({urls: `${WEB_SERVER_HOST}/*`}, (details, callback) => {
+
+      // Append the Authorization header for local requests only
+      if(details.url.startsWith(`${this.PROD_URL}/`)) {
+        details.requestHeaders['Authorization'] = `${WEB_SERVER_TOKEN_NAME} ${this.accessToken}`;
+      }
+
+      callback({cancel: false, requestHeaders: details.requestHeaders});
     });
   }
 };

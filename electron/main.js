@@ -588,6 +588,19 @@ class BrowserWindowInit {
     this.browserWindowListeners();
   }
 
+  getWrapperStyle() {
+    return new Promise((resolve, reject) => {
+
+      fs.readFile(WRAPPER_CSS, 'utf8', (err, data) => {
+        if(err) {
+          reject(err);
+          return;
+        }
+        resolve(data);
+      });
+    });
+  }
+
   browserWindowListeners() {
     const browserWindowListenersDebug = debug('BrowserWindowInit:browserWindowListeners');
 
@@ -634,7 +647,13 @@ class BrowserWindowInit {
 
     this.browserWindow.webContents.on('dom-ready', () => {
 
-      this.browserWindow.webContents.insertCSS(fs.readFileSync(WRAPPER_CSS, 'utf8'));
+      // Overwrite webapp styles
+      this.getWrapperStyle().then((css) => {
+        this.browserWindow.webContents.insertCSS(css);
+        browserWindowListenersDebug('Successfully added wrapper CSS');
+      }).catch((err) => {
+        browserWindowListenersDebug('WARNING: Unable to add wrapper CSS into the webapp! Error: %s', err);
+      });
 
       if (this.enteredWebapp) {
 
@@ -644,6 +663,7 @@ class BrowserWindowInit {
         });
 
       } else {
+
         this.browserWindow.webContents.send('splash-screen-loaded');
       }
     });

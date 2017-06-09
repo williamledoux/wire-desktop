@@ -63,6 +63,7 @@ const SPLASH_HTML = 'file://' + path.join(APP_PATH, 'html', 'splash.html');
 const CERT_ERR_HTML = 'file://' + path.join(APP_PATH, 'html', 'certificate-error.html');
 const ABOUT_HTML = 'file://' + path.join(APP_PATH, 'html', 'about.html');
 
+// Icon
 const ICON = 'wire.' + ((process.platform === 'win32') ? 'ico' : 'png');
 const ICON_PATH = path.join(APP_PATH, 'img', ICON);
 
@@ -96,6 +97,9 @@ class ElectronWrapperInit {
 
     this.debug('showMainWindow init');
     this.showMainWindow();
+
+    this.debug('misc init');
+    this.misc();
 
     this.debug('runWebServer init');
     this.runWebServer().then((res) => {
@@ -231,6 +235,7 @@ class ElectronWrapperInit {
     });
 
     // Disable certificate verification in development env.
+    miscDebug('Development mode? %s', config.DEVELOPMENT);
     if (config.DEVELOPMENT) {
       miscDebug('WARNING: Certificate errors are ignored!');
       app.commandLine.appendSwitch('ignore-certificate-errors', 'true');

@@ -660,6 +660,12 @@ class BrowserWindowInit {
         return callback(true);
       }
 
+      // Allow Wire notifications
+      if(url.startsWith(`${WEB_SERVER_HOST}/`) && permission === 'notifications') {
+        return callback(true);
+      }
+
+      sessionPermissionsHandlingDebug('Permission denied');
       return callback(false);
     });
   }

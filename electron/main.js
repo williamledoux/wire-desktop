@@ -55,10 +55,9 @@ const argv = minimist(process.argv.slice(1));
 const config = require('./js/config');
 const ALLOWED_WEBVIEWS_ORIGIN = config.ALLOWED_WEBVIEWS_ORIGIN;
 
+// Local files
 const PRELOAD_JS = path.join(APP_PATH, 'js', 'preload.js');
 const WRAPPER_CSS = path.join(APP_PATH, 'css', 'wrapper.css');
-
-// Static pages
 const SPLASH_HTML = 'file://' + path.join(APP_PATH, 'html', 'splash.html');
 const CERT_ERR_HTML = 'file://' + path.join(APP_PATH, 'html', 'certificate-error.html');
 const ABOUT_HTML = 'file://' + path.join(APP_PATH, 'html', 'about.html');
@@ -418,7 +417,7 @@ class ElectronWrapperInit {
     });
   }
 
-  // Archive console.log
+  // Archive old console.log
   cleanupLogFile() {
     let consoleLog = path.join(USER_DATAS_PATH, config.CONSOLE_LOG);
 
@@ -565,7 +564,7 @@ class BrowserWindowInit {
         return;
       }
 
-      // Prevent navigation by default
+      // Prevent navigation inside the wrapper by default
       // Prevent Redirect for Drag and Drop on embeds
       // or when no internet is present
       event.preventDefault();
@@ -649,8 +648,7 @@ class BrowserWindowInit {
       sessionPermissionsHandlingDebug('URL: %s, Permission: %s', url, permission);
 
       // Allow fullscreen for Youtube
-      if(url.match(ALLOWED_WEBVIEWS_ORIGIN.youtube) &&
-          permission === 'fullscreen') {
+      if(url.match(ALLOWED_WEBVIEWS_ORIGIN.youtube) && permission === 'fullscreen') {
 
         sessionPermissionsHandlingDebug('Allowing fullscreen for Youtube');
 

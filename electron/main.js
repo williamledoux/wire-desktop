@@ -157,6 +157,19 @@ class ElectronWrapperInit {
     const webviewProtectionDebug = debug('ElectronWrapperInit:webviewProtection');
 
     app.on('web-contents-created', (event, contents) => {
+
+      // Open webview links in a browser window
+      contents.on('new-window', (event, url) => {
+        event.preventDefault();
+
+        console.log(event);
+
+        if (util.isMatchingEmbed(url)) {
+          this.debug('Opening an external link from a webview');
+          shell.openExternal(url);
+        }
+      });
+
       contents.on('will-attach-webview', (event, webPreferences, params) => {
         const url = params.src;
 

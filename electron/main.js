@@ -176,11 +176,22 @@ class ElectronWrapperInit {
         // Strip away preload scripts as they represent a security risk
         delete webPreferences.preload;
         delete webPreferences.preloadURL;
+        params.preload = '';
 
         // Use secure defaults
         webPreferences.nodeIntegration = false;
+        webPreferences.webSecurity = true;
         webPreferences.sandboxed = true;
         webPreferences.contextIsolation = true;
+        params.plugins = false;
+        params.autosize = false;
+
+        // Let onBeforeSendHeaders manage the referrer
+        params.httpreferrer = '';
+
+        // IMPORTANT: Use an in-memory partition for the session derived from the URL
+        // https://electron.atom.io/docs/api/webview-tag/#partition
+        params.partition = url.toString('base64');
 
         // Verify the URL being loaded
         if (!util.isMatchingEmbed(url)) {
@@ -573,8 +584,7 @@ class BrowserWindowInit {
       }
 
       // Prevent navigation inside the wrapper by default
-      // Prevent Redirect for Drag and Drop on embeds
-      // or when no internet is present
+      // Prevent Redirect for Drag and Drop on embeds or when no internet is present
       event.preventDefault();
 
       // Open links like www.wire.com in the browser instead

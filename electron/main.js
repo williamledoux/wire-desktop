@@ -183,6 +183,7 @@ class ElectronWrapperInit {
         webPreferences.webSecurity = true;
         webPreferences.sandboxed = true;
         webPreferences.contextIsolation = true;
+        webPreferences.allowRunningInsecureContent = false;
         params.plugins = false;
         params.autosize = false;
 
@@ -492,6 +493,9 @@ class BrowserWindowInit {
 
         // Enable <webview>
         webviewTag: true,
+
+        // Enforce allowRunningInsecureContent deactivation
+        allowRunningInsecureContent: false,
 
         // ToDo: Activate contextIsolation as soon as <webview> is compatible with
         //contextIsolation: true,

@@ -55,11 +55,18 @@ let config = {
   UPDATE_INTERVAL: 24 * 60 * 60 * 1000,
 
   ALLOWED_WEBVIEWS_ORIGIN: {
-    soundcloud: /(https?:\/\/(?:www\.|m\.)?)?soundcloud\.com(\/[\w\-]+){2,3}/g,
-    spotify: /https?:\/\/(?:play\.|open\.)*spotify\.com\/([\w\-/]+)/g,
-    vimeo: /https?:\/\/(?:vimeo\.com\/|player\.vimeo\.com\/)(?:video\/|(?:channels\/staffpicks\/|channels\/)|)((\w|-){7,9})/g,
+    soundcloud: /(?:www\.|m\.)?soundcloud\.com(\/[\w\-]+){2,3}/g,
+    spotify: /(?:play\.|open\.)*spotify\.com\/([\w\-/]+)/g,
+    vimeo: /(?:vimeo\.com\/|player\.vimeo\.com\/)(?:video\/|(?:channels\/staffpicks\/|channels\/)|)((\w|-){7,9})/g,
     youtube: /(?:youtube(?:-nocookie|)\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\/?\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/g,
   },
+
+  EMBED_DOMAINS: [
+    'www.youtube-nocookie.com',
+    'player.vimeo.com',
+    'embed.spotify.com',
+    'w.soundcloud.com'
+  ],
 
   BACKEND_URLS: [
     'https://prod-nginz-https.wire.com/*',

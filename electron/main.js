@@ -66,6 +66,18 @@ const ABOUT_HTML = 'file://' + path.join(APP_PATH, 'html', 'about.html');
 const ICON = 'wire.' + ((process.platform === 'win32') ? 'ico' : 'png');
 const ICON_PATH = path.join(APP_PATH, 'img', ICON);
 
+const Tools = {
+
+  isMatchingEmbed: (url) => {
+    return (
+      url.match(ALLOWED_WEBVIEWS_ORIGIN.soundcloud) ||
+      url.match(ALLOWED_WEBVIEWS_ORIGIN.spotify) ||
+      url.match(ALLOWED_WEBVIEWS_ORIGIN.vimeo) ||
+      url.match(ALLOWED_WEBVIEWS_ORIGIN.youtube)
+    );
+  }
+};
+
 class ElectronWrapperInit {
 
   constructor() {
@@ -124,6 +136,9 @@ class ElectronWrapperInit {
 
         this.main.PROD_URL = PROD_URL;
         this.debug('PROD_URL has been set');
+
+        this.main.onBeforeSendHeaders();
+        this.debug('onBeforeSendHeaders init');
       });
 
       // Register IPC events
@@ -168,11 +183,7 @@ class ElectronWrapperInit {
         webPreferences.contextIsolation = true;
 
         // Verify the URL being loaded
-        if (!url.match(ALLOWED_WEBVIEWS_ORIGIN.soundcloud) &&
-            !url.match(ALLOWED_WEBVIEWS_ORIGIN.spotify) &&
-            !url.match(ALLOWED_WEBVIEWS_ORIGIN.vimeo) &&
-            !url.match(ALLOWED_WEBVIEWS_ORIGIN.youtube)
-          ) {
+        if (!Tools.isMatchingEmbed(url)) {
             webviewProtectionDebug('Prevented to show an unauthorized <webview>. URL: %s', url);
             event.preventDefault();
         }
@@ -495,9 +506,6 @@ class BrowserWindowInit {
     // Fix CORS on backend
     this.fixCorsOnBackend();
 
-    // Add Authorization token
-    this.addAuthTokenToLocalRequests();
-
     // Browser window listeners
     this.browserWindowListeners();
   }
@@ -647,6 +655,11 @@ class BrowserWindowInit {
       // Enums: 'media', 'geolocation', 'notifications', 'midiSysex', 'pointerLock', 'fullscreen', 'openExternal'
       sessionPermissionsHandlingDebug('URL: %s, Permission: %s', url, permission);
 
+      // Allow Wire notifications
+      if(url.startsWith(`${WEB_SERVER_HOST}/`) && permission === 'notifications') {
+        return callback(true);
+      }
+
       // Allow fullscreen for Youtube
       if(url.match(ALLOWED_WEBVIEWS_ORIGIN.youtube) && permission === 'fullscreen') {
 
@@ -657,11 +670,6 @@ class BrowserWindowInit {
           link: url
         });
 
-        return callback(true);
-      }
-
-      // Allow Wire notifications
-      if(url.startsWith(`${WEB_SERVER_HOST}/`) && permission === 'notifications') {
         return callback(true);
       }
 
@@ -718,16 +726,36 @@ class BrowserWindowInit {
     });
   }
 
-  // Add Authorization token
-  addAuthTokenToLocalRequests() {
-    this.browserWindow.webContents.session.webRequest.onBeforeSendHeaders({urls: `${WEB_SERVER_HOST}/*`}, (details, callback) => {
+  // Must be executed only after this.PROD_URL is available
+  onBeforeSendHeaders() {
 
-      // Append the Authorization header for build-in local server only
+    let filters = [
+      // Local web server
+      `${this.PROD_URL}/*`
+    ];
+
+    // Embed contents
+    for (let i=0; i < config.EMBED_DOMAINS.length; i++) {
+        filters.push(`https://${config.EMBED_DOMAINS[i]}/*`);
+    }
+
+    this.debug('Current filters for onBeforeSendHeaders: %o', filters);
+
+    this.browserWindow.webContents.session.webRequest.onBeforeSendHeaders({urls: filters}, (details, callback) => {
+
       if(details.url.startsWith(`${this.PROD_URL}/`)) {
+        // Append the Authorization header for build-in local server only
         details.requestHeaders['Authorization'] = `${WEB_SERVER_TOKEN_NAME} ${this.accessToken}`;
+      } else if(Tools.isMatchingEmbed(details.url)) {
+        // Set the right referer for embed content for webviews (like an <iframe> would do)
+        this.debug('Embed match: %s', details.url);
+        details.requestHeaders['Referer'] = details.url;
       }
 
-      callback({cancel: false, requestHeaders: details.requestHeaders});
+      callback({
+        cancel: false,
+        requestHeaders: details.requestHeaders
+      });
     });
   }
 };

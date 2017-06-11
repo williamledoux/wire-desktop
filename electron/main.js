@@ -53,7 +53,6 @@ const WEB_SERVER_TOKEN_NAME = 'Local';
 // Config
 const argv = minimist(process.argv.slice(1));
 const config = require('./js/config');
-const ALLOWED_WEBVIEWS_ORIGIN = config.ALLOWED_WEBVIEWS_ORIGIN;
 
 // Local files
 const PRELOAD_JS = path.join(APP_PATH, 'js', 'preload.js');
@@ -65,18 +64,6 @@ const ABOUT_HTML = 'file://' + path.join(APP_PATH, 'html', 'about.html');
 // Icon
 const ICON = 'wire.' + ((process.platform === 'win32') ? 'ico' : 'png');
 const ICON_PATH = path.join(APP_PATH, 'img', ICON);
-
-const Tools = {
-
-  isMatchingEmbed: (url) => {
-    return (
-      url.match(ALLOWED_WEBVIEWS_ORIGIN.soundcloud) ||
-      url.match(ALLOWED_WEBVIEWS_ORIGIN.spotify) ||
-      url.match(ALLOWED_WEBVIEWS_ORIGIN.vimeo) ||
-      url.match(ALLOWED_WEBVIEWS_ORIGIN.youtube)
-    );
-  }
-};
 
 class ElectronWrapperInit {
 
@@ -183,7 +170,7 @@ class ElectronWrapperInit {
         webPreferences.contextIsolation = true;
 
         // Verify the URL being loaded
-        if (!Tools.isMatchingEmbed(url)) {
+        if (!util.isMatchingEmbed(url)) {
             webviewProtectionDebug('Prevented to show an unauthorized <webview>. URL: %s', url);
             event.preventDefault();
         }
@@ -661,7 +648,7 @@ class BrowserWindowInit {
       }
 
       // Allow fullscreen for Youtube
-      if(url.match(ALLOWED_WEBVIEWS_ORIGIN.youtube) && permission === 'fullscreen') {
+      if(url.match(config.ALLOWED_WEBVIEWS_ORIGIN.youtube) && permission === 'fullscreen') {
 
         sessionPermissionsHandlingDebug('Allowing fullscreen for Youtube');
 
@@ -746,7 +733,7 @@ class BrowserWindowInit {
       if(details.url.startsWith(`${this.PROD_URL}/`)) {
         // Append the Authorization header for build-in local server only
         details.requestHeaders['Authorization'] = `${WEB_SERVER_TOKEN_NAME} ${this.accessToken}`;
-      } else if(Tools.isMatchingEmbed(details.url)) {
+      } else if(util.isMatchingEmbed(details.url)) {
         // Set the right referer for embed content for webviews (like an <iframe> would do)
         this.debug('Embed match: %s', details.url);
         details.requestHeaders['Referer'] = details.url;

@@ -35,6 +35,15 @@ module.exports = {
     return upperLeftVisible || lowerRightVisible;
   },
 
+  isMatchingEmbed: (url) => {
+    return (
+      url.match(config.ALLOWED_WEBVIEWS_ORIGIN.soundcloud) ||
+      url.match(config.ALLOWED_WEBVIEWS_ORIGIN.spotify) ||
+      url.match(config.ALLOWED_WEBVIEWS_ORIGIN.vimeo) ||
+      url.match(config.ALLOWED_WEBVIEWS_ORIGIN.youtube)
+    );
+  },
+
   openInExternalWindow: function(url) {
     for (let item of config.WHITE_LIST) {
       if (url.includes(item)) {

@@ -665,8 +665,11 @@ class BrowserWindowInit {
       // Enums: 'media', 'geolocation', 'notifications', 'midiSysex', 'pointerLock', 'fullscreen', 'openExternal'
       sessionPermissionsHandlingDebug('URL: %s, Permission: %s', url, permission);
 
-      // Allow Wire notifications
-      if(url.startsWith(`${WEB_SERVER_HOST}/`) && permission === 'notifications') {
+      if(url.startsWith(`${WEB_SERVER_HOST}/`) && (permission === 'notifications' || permission === 'media')) {
+
+        // Allow Wire to use notifications and camera/microphone
+        sessionPermissionsHandlingDebug('Allowing Wire notifications / media access');
+
         return callback(true);
 
       } else if(url.match(config.ALLOWED_WEBVIEWS_ORIGIN.youtube) && permission === 'fullscreen') {

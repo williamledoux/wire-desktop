@@ -668,15 +668,15 @@ class BrowserWindowInit {
       // Allow Wire notifications
       if(url.startsWith(`${WEB_SERVER_HOST}/`) && permission === 'notifications') {
         return callback(true);
-      }
 
-      // Allow fullscreen for Youtube
-      if(url.match(config.ALLOWED_WEBVIEWS_ORIGIN.youtube) && permission === 'fullscreen') {
+      } else if(url.match(config.ALLOWED_WEBVIEWS_ORIGIN.youtube) && permission === 'fullscreen') {
 
+        // Allow fullscreen for Youtube
         sessionPermissionsHandlingDebug('Allowing fullscreen for Youtube');
 
-        // Emit event to browser
+        // Emit the event to browser
         this.browserWindow.webContents.send('youtube-fullscreen', {
+          viewInstanceId: webContents.viewInstanceId,
           link: url
         });
 

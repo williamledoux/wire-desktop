@@ -40,7 +40,6 @@ const debug = console.log;
 
 // Webframe
 debug('Loading webframe');
-webFrame.setVisualZoomLevelLimits(1, 1);
 webFrame.registerURLSchemeAsPrivileged('wire', {
   secure: true,
   bypassCSP: false,

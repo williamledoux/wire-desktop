@@ -512,6 +512,9 @@ class BrowserWindowInit {
       this.browserWindow.setBounds(init.restore('bounds', this.browserWindow.getBounds()));
     }
 
+    // Set a fixed pinch-to-zoom level
+    this.browserWindow.webContents.setVisualZoomLevelLimits(1, 1);
+
     // Session handling
     this.sessionPermissionsHandling();
 

@@ -113,7 +113,7 @@ class ElectronWrapperInit {
       //this.debug('Token is %s', res.accessToken);
       app.once('ready', () => {
 
-        if(!this.main) {
+        if (!this.main) {
           this.debug('Unable to set datas in the BrowserWindowInit class, requests to the web server will likely fail!');
           return;
         }
@@ -139,7 +139,7 @@ class ElectronWrapperInit {
   getBaseUrl() {
 
     if (!argv.env && config.DEVELOPMENT) {
-      switch(init.restore('env', config.INTERNAL)) {
+      switch (init.restore('env', config.INTERNAL)) {
         //case config.PROD: return undefined;
         case config.DEV: return config.DEV_URL;
         case config.EDGE: return config.EDGE_URL;
@@ -157,23 +157,23 @@ class ElectronWrapperInit {
     const webviewProtectionDebug = debug('ElectronWrapperInit:webviewProtection');
     const openLinkInNewWindow = (event, _url) => {
 
-        // Prevent default behavior
-        event.preventDefault();
+      // Prevent default behavior
+      event.preventDefault();
 
-        // Ensure the link come from a webview
-        /*if(typeof event.sender.viewInstanceId !== 'number') {
-          this.debug('New window did not came from a webview, aborting.');
-          return;
-        }*/
+      // Ensure the link come from a webview
+      /*if (typeof event.sender.viewInstanceId !== 'number') {
+        this.debug('New window did not came from a webview, aborting.');
+        return;
+      }*/
 
-        // Ensure the link come from a whitelisted link
-        if (!util.isMatchingEmbedOpenExternalWhitelist(_url)) {
-          webviewProtectionDebug('Tried to open a non-whitelisted window from a webview, aborting. URL: %s', _url);
-          return;
-        }
+      // Ensure the link come from a whitelisted link
+      if (!util.isMatchingEmbedOpenExternalWhitelist(_url)) {
+        webviewProtectionDebug('Tried to open a non-whitelisted window from a webview, aborting. URL: %s', _url);
+        return;
+      }
 
-        webviewProtectionDebug('Opening an external window from a webview. URL: %s', _url);
-        shell.openExternal(_url);
+      webviewProtectionDebug('Opening an external window from a webview. URL: %s', _url);
+      shell.openExternal(_url);
     };
 
     app.on('web-contents-created', (event, contents) => {
@@ -184,10 +184,10 @@ class ElectronWrapperInit {
       }
 
       // Open webview links outside of the app
-      contents.on('new-window', (event, _url) => { openLinkInNewWindow(event, _url); });
-      contents.on('will-navigate', (event, _url) => { openLinkInNewWindow(event, _url); });
+      contents.on('new-window', (e, _url) => { openLinkInNewWindow(e, _url); });
+      contents.on('will-navigate', (e, _url) => { openLinkInNewWindow(e, _url); });
 
-      contents.on('will-attach-webview', (event, webPreferences, params) => {
+      contents.on('will-attach-webview', (e, webPreferences, params) => {
         const _url = params.src;
 
         // Strip away preload scripts as they represent a security risk
@@ -215,8 +215,8 @@ class ElectronWrapperInit {
 
         // Verify the URL being loaded
         if (!util.isMatchingEmbed(_url)) {
-            webviewProtectionDebug('Prevented to show an unauthorized <webview>. URL: %s', _url);
-            event.preventDefault();
+          e.preventDefault();
+          webviewProtectionDebug('Prevented to show an unauthorized <webview>. URL: %s', _url);
         }
       });
     });
@@ -266,7 +266,7 @@ class ElectronWrapperInit {
 
   // Misc
   misc() {
-    const miscDebug = debug('ElectronWrapperInit:misc');
+    //const miscDebug = debug('ElectronWrapperInit:misc');
 
     // Raygun settings
     this.raygunClient = new raygun.Client().init({apiKey: config.RAYGUN_API_KEY});
@@ -425,7 +425,7 @@ class ElectronWrapperInit {
     });
 
     app.on('before-quit', () => {
-      if(this.main) {
+      if (this.main) {
         this.main.quitting = true;
       }
     });
@@ -580,7 +580,7 @@ class BrowserWindowInit {
     return new Promise((resolve, reject) => {
 
       fs.readFile(WRAPPER_CSS, 'utf8', (err, data) => {
-        if(err) {
+        if (err) {
           reject(err);
           return;
         }
@@ -603,7 +603,7 @@ class BrowserWindowInit {
       }
 
       // Allow access in the same window to wire://
-      if(_url.startsWith(`${WEB_SERVER_HOST}/`)) {
+      if (_url.startsWith(`${WEB_SERVER_HOST}/`)) {
         browserWindowListenersDebug('Allowing access to wire://');
 
         // Resize the window if needed
@@ -632,7 +632,7 @@ class BrowserWindowInit {
       event.preventDefault();
 
       // Ensure the link does not come from a webview
-      if(typeof event.sender.viewInstanceId !== 'undefined') {
+      if (typeof event.sender.viewInstanceId !== 'undefined') {
         this.debug('New window did came from a webview, aborting.');
         return;
       }
@@ -706,7 +706,7 @@ class BrowserWindowInit {
       // Enums: 'media', 'geolocation', 'notifications', 'midiSysex', 'pointerLock', 'fullscreen', 'openExternal'
       sessionPermissionsHandlingDebug('URL: %s, Permission: %s', _url, permission);
 
-      if(
+      if (
         (_url.startsWith(`${WEB_SERVER_HOST}/`))
         && (permission === 'notifications' || permission === 'media')
       ) {
@@ -716,7 +716,7 @@ class BrowserWindowInit {
 
         return callback(true);
 
-      } else if(
+      } else if (
         (util.isMatchingEmbed(_url))
         && (permission === 'fullscreen')
       ) {
@@ -727,7 +727,7 @@ class BrowserWindowInit {
         // Emit the event to browser
         this.browserWindow.webContents.send('ask-fullscreen', {
           viewInstanceId: webContents.viewInstanceId,
-          link: _url
+          link: _url,
         });
 
         return callback(true);
@@ -781,7 +781,7 @@ class BrowserWindowInit {
 
       callback({
         cancel: false,
-        responseHeaders: details.responseHeaders
+        responseHeaders: details.responseHeaders,
       });
     });
   }
@@ -791,22 +791,22 @@ class BrowserWindowInit {
 
     let filters = [
       // Local web server
-      `${this.PROD_URL}/*`
+      `${this.PROD_URL}/*`,
     ];
 
     // Embed contents
     for (let i=0; i < config.EMBED_DOMAINS.length; i++) {
-        filters.push(`https://${config.EMBED_DOMAINS[i]}/*`);
+      filters.push(`https://${config.EMBED_DOMAINS[i]}/*`);
     }
 
     this.debug('Current filters for onBeforeSendHeaders: %o', filters);
 
     this.browserWindow.webContents.session.webRequest.onBeforeSendHeaders({urls: filters}, (details, callback) => {
 
-      if(details.url.startsWith(`${this.PROD_URL}/`)) {
+      if (details.url.startsWith(`${this.PROD_URL}/`)) {
         // Append the Authorization header for build-in local server only
         details.requestHeaders['Authorization'] = `${WEB_SERVER_TOKEN_NAME} ${this.accessToken}`;
-      } else if(util.isMatchingEmbed(details.url)) {
+      } else if (util.isMatchingEmbed(details.url)) {
         // Set the right referer for embed content for webviews (like an <iframe> would do)
         this.debug('Embed match: %s', details.url);
         details.requestHeaders['Referer'] = details.url;
@@ -814,7 +814,7 @@ class BrowserWindowInit {
 
       callback({
         cancel: false,
-        requestHeaders: details.requestHeaders
+        requestHeaders: details.requestHeaders,
       });
     });
   }

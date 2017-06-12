@@ -46,9 +46,9 @@ module.exports = {
     return (config.ALLOWED_WEBVIEWS_OPEN_EXTERNAL.indexOf(hostname) !== -1);
   },
 
-  openInExternalWindow: function(url) {
+  openInExternalWindow: function(_url) {
     for (let item of config.WHITE_LIST) {
-      if (url.includes(item)) {
+      if (_url.includes(item)) {
         return true;
       }
     }

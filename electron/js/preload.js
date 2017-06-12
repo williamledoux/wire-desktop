@@ -22,7 +22,7 @@
 // Disable eval()
 window.eval = global.eval = function() {
   throw new Error('Wire does not support window.eval() for security reasons.');
-}
+};
 
 // To use full sandbox, we need to get rid of desktopCapturer
 // and webFrame dependencies by using the IPC Renderer instead

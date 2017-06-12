@@ -1,5 +1,5 @@
 {
-  "name": "wire-desktop",
+  "name": "wire",
   "productName": "Wire",
   "description": "Modern communication, full privacy.",
   "version": "2.14.2743",
@@ -16,15 +16,18 @@
   },
   "dependencies": {
     "auto-launch": "5.0.1",
-    "googleapis": "17.1.0",
+    "debug": "^2.6.8",
+    "finalhandler": "^1.0.3",
+    "googleapis": "19.0.0",
     "image-type": "3.0.0",
     "jsrsasign": "7.2.1",
     "minimist": "1.2.0",
     "open-graph": "0.2.3",
     "raygun": "0.9.1",
     "request": "2.81.0",
+    "serve-static": "^1.12.3",
     "spellchecker": "3.3.1",
-    "winston": "https://github.com/wireapp/winston.git#2.3.1"
+    "winston": "https://github.com/wireapp/winston.git#2.2.0-e"
   },
   "devDependencies": {
     "cross-spawn": "5.1.0",

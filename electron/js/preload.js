@@ -31,9 +31,10 @@ const {remote, ipcRenderer, desktopCapturer, webFrame} = require('electron');
 const path = require('path');
 
 const {app} = remote;
+const APP_PATH = app.getAppPath();
 
 // Get Package.json
-const buf = require('fs').readFileSync('./electron/package.json');
+const buf = require('fs').readFileSync(`${APP_PATH}/package.json`);
 const pkg = JSON.parse(buf.toString('utf8'));
 
 const debug = console.log;

@@ -18,13 +18,13 @@
     "auto-launch": "5.0.1",
     "googleapis": "17.1.0",
     "image-type": "3.0.0",
-    "jsrsasign": "7.1.2",
+    "jsrsasign": "7.2.1",
     "minimist": "1.2.0",
     "open-graph": "0.2.3",
     "raygun": "0.9.1",
-    "request": "2.76.0",
+    "request": "2.81.0",
     "spellchecker": "3.3.1",
-    "winston": "https://github.com/wireapp/winston.git#2.2.0-e"
+    "winston": "https://github.com/wireapp/winston.git#2.3.1"
   },
   "devDependencies": {
     "cross-spawn": "5.1.0",
@@ -32,7 +32,7 @@
     "electron-rebuild": "1.5.11"
   },
   "optionalDependencies": {
-    "libsodium-neon": "2.1.0",
+    "libsodium-neon": "2.1.1",
     "node-addressbook": "https://github.com/wireapp/node-addressbook.git#2.0.0"
   },
   "scripts": {

@@ -20,6 +20,7 @@
 'use strict';
 
 const electron = require('electron');
+const url = require('url');
 
 const config = require('./config');
 const pointInRectangle = require('./lib/pointInRect');
@@ -35,13 +36,14 @@ module.exports = {
     return upperLeftVisible || lowerRightVisible;
   },
 
-  isMatchingEmbed: (url) => {
-    return (
-      url.match(config.ALLOWED_WEBVIEWS_ORIGIN.soundcloud) ||
-      url.match(config.ALLOWED_WEBVIEWS_ORIGIN.spotify) ||
-      url.match(config.ALLOWED_WEBVIEWS_ORIGIN.vimeo) ||
-      url.match(config.ALLOWED_WEBVIEWS_ORIGIN.youtube)
-    );
+  isMatchingEmbed: (_url) => {
+    const hostname = url.parse(_url).hostname;
+    return (config.EMBED_DOMAINS.indexOf(hostname) !== -1);
+  },
+
+  isMatchingEmbedOpenExternalWhitelist: (_url) => {
+    const hostname = url.parse(_url).hostname;
+    return (config.ALLOWED_WEBVIEWS_OPEN_EXTERNAL.indexOf(hostname) !== -1);
   },
 
   openInExternalWindow: function(url) {

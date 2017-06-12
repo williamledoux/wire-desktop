@@ -155,23 +155,40 @@ class ElectronWrapperInit {
   // <webview> hardening
   webviewProtection() {
     const webviewProtectionDebug = debug('ElectronWrapperInit:webviewProtection');
+    const openLinkInNewWindow = (event, _url) => {
+
+        // Prevent default behavior
+        event.preventDefault();
+
+        // Ensure the link come from a webview
+        /*if(typeof event.sender.viewInstanceId !== 'number') {
+          this.debug('New window did not came from a webview, aborting.');
+          return;
+        }*/
+
+        // Ensure the link come from a whitelisted link
+        if (!util.isMatchingEmbedOpenExternalWhitelist(_url)) {
+          webviewProtectionDebug('Tried to open a non-whitelisted window from a webview, aborting. URL: %s', _url);
+          return;
+        }
+
+        webviewProtectionDebug('Opening an external window from a webview. URL: %s', _url);
+        shell.openExternal(_url);
+    };
 
     app.on('web-contents-created', (event, contents) => {
 
-      // Open webview links in a browser window
-      contents.on('new-window', (event, url) => {
-        event.preventDefault();
+      // These events should only be applied on webviews
+      if (contents.getType() !== 'webview') {
+        return;
+      }
 
-        console.log(event);
-
-        if (util.isMatchingEmbed(url)) {
-          this.debug('Opening an external link from a webview');
-          shell.openExternal(url);
-        }
-      });
+      // Open webview links outside of the app
+      contents.on('new-window', (event, _url) => { openLinkInNewWindow(event, _url); });
+      contents.on('will-navigate', (event, _url) => { openLinkInNewWindow(event, _url); });
 
       contents.on('will-attach-webview', (event, webPreferences, params) => {
-        const url = params.src;
+        const _url = params.src;
 
         // Strip away preload scripts as they represent a security risk
         delete webPreferences.preload;
@@ -181,7 +198,7 @@ class ElectronWrapperInit {
         // Use secure defaults
         webPreferences.nodeIntegration = false;
         webPreferences.webSecurity = true;
-        webPreferences.sandboxed = true;
+        webPreferences.sandbox = true;
         webPreferences.contextIsolation = true;
         params.contextIsolation = true;
         webPreferences.allowRunningInsecureContent = false;
@@ -191,13 +208,14 @@ class ElectronWrapperInit {
         // Let onBeforeSendHeaders manage the referrer
         params.httpreferrer = '';
 
-        // IMPORTANT: Use an in-memory partition for the session derived from the URL
+        // IMPORTANT: Use an in-memory partition for the session (derived from the URL)
         // https://electron.atom.io/docs/api/webview-tag/#partition
-        params.partition = url.toString('base64');
+        params.partition = new Buffer(_url).toString('base64');
+        webviewProtectionDebug('Using partition %s', params.partition);
 
         // Verify the URL being loaded
-        if (!util.isMatchingEmbed(url)) {
-            webviewProtectionDebug('Prevented to show an unauthorized <webview>. URL: %s', url);
+        if (!util.isMatchingEmbed(_url)) {
+            webviewProtectionDebug('Prevented to show an unauthorized <webview>. URL: %s', _url);
             event.preventDefault();
         }
       });
@@ -220,8 +238,8 @@ class ElectronWrapperInit {
       protocol.registerHttpProtocol('wire', (request, callback) => {
 
         // Remove wire://127.0.0.1 and extra slashes
-        const url = request.url.substr(WEB_SERVER_HOST.length).replace(/\/$/, '').replace(/^\//, '');
-        const redirectPath = `${baseURL}/${url}`;
+        const _url = request.url.substr(WEB_SERVER_HOST.length).replace(/\/$/, '').replace(/^\//, '');
+        const redirectPath = `${baseURL}/${_url}`;
 
         registerProtocolsDebug('%s', redirectPath);
 
@@ -574,18 +592,18 @@ class BrowserWindowInit {
   browserWindowListeners() {
     const browserWindowListenersDebug = debug('BrowserWindowInit:browserWindowListeners');
 
-    this.browserWindow.webContents.on('will-navigate', (event, url) => {
+    this.browserWindow.webContents.on('will-navigate', (event, _url) => {
       browserWindowListenersDebug('will-navigate fired');
 
       // Resize the window for auth
-      if (url.startsWith(`${WEB_SERVER_HOST}/auth/`)) {
+      if (_url.startsWith(`${WEB_SERVER_HOST}/auth/`)) {
         browserWindowListenersDebug('Login page asked');
         util.resizeToSmall(this.browserWindow);
         return;
       }
 
       // Allow access in the same window to wire://
-      if(url.startsWith(`${WEB_SERVER_HOST}/`)) {
+      if(_url.startsWith(`${WEB_SERVER_HOST}/`)) {
         browserWindowListenersDebug('Allowing access to wire://');
 
         // Resize the window if needed
@@ -603,15 +621,23 @@ class BrowserWindowInit {
       event.preventDefault();
 
       // Open links like www.wire.com in the browser instead
-      if (util.openInExternalWindow(url)) {
-        shell.openExternal(url);
+      if (util.openInExternalWindow(_url)) {
+        shell.openExternal(_url);
         return;
       }
     });
 
-    this.browserWindow.webContents.on('new-window', (event, url) => {
+    // Handle the new window event in the main Browser Window
+    this.browserWindow.webContents.on('new-window', (event, _url) => {
       event.preventDefault();
-      shell.openExternal(url);
+
+      // Ensure the link does not come from a webview
+      if(typeof event.sender.viewInstanceId !== 'undefined') {
+        this.debug('New window did came from a webview, aborting.');
+        return;
+      }
+
+      shell.openExternal(_url);
     });
 
     this.browserWindow.webContents.on('dom-ready', () => {
@@ -675,27 +701,33 @@ class BrowserWindowInit {
     const sessionPermissionsHandlingDebug = debug('BrowserWindowInit:sessionPermissionsHandling');
 
     this.browserWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
-      const url = webContents.getURL();
+      const _url = webContents.getURL();
 
       // Enums: 'media', 'geolocation', 'notifications', 'midiSysex', 'pointerLock', 'fullscreen', 'openExternal'
-      sessionPermissionsHandlingDebug('URL: %s, Permission: %s', url, permission);
+      sessionPermissionsHandlingDebug('URL: %s, Permission: %s', _url, permission);
 
-      if(url.startsWith(`${WEB_SERVER_HOST}/`) && (permission === 'notifications' || permission === 'media')) {
+      if(
+        (_url.startsWith(`${WEB_SERVER_HOST}/`))
+        && (permission === 'notifications' || permission === 'media')
+      ) {
 
         // Allow Wire to use notifications and camera/microphone
-        sessionPermissionsHandlingDebug('Allowing Wire notifications / media access');
+        sessionPermissionsHandlingDebug('Allowing Wire notifications or media access');
 
         return callback(true);
 
-      } else if(url.match(config.ALLOWED_WEBVIEWS_ORIGIN.youtube) && permission === 'fullscreen') {
+      } else if(
+        (util.isMatchingEmbed(_url))
+        && (permission === 'fullscreen')
+      ) {
 
-        // Allow fullscreen for Youtube
-        sessionPermissionsHandlingDebug('Allowing fullscreen for Youtube');
+        // Allow fullscreen for embed content
+        sessionPermissionsHandlingDebug('Allowing fullscreen for embed content');
 
         // Emit the event to browser
-        this.browserWindow.webContents.send('youtube-fullscreen', {
+        this.browserWindow.webContents.send('ask-fullscreen', {
           viewInstanceId: webContents.viewInstanceId,
-          link: url
+          link: _url
         });
 
         return callback(true);

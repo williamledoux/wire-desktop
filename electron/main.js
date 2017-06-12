@@ -183,6 +183,7 @@ class ElectronWrapperInit {
         webPreferences.webSecurity = true;
         webPreferences.sandboxed = true;
         webPreferences.contextIsolation = true;
+        params.contextIsolation = true;
         webPreferences.allowRunningInsecureContent = false;
         params.plugins = false;
         params.autosize = false;
@@ -488,16 +489,23 @@ class BrowserWindowInit {
         // Preload script for the webapp
         preload: PRELOAD_JS,
 
-        // Activate semi-sandbox
-        sandboxed: true,
-
         // Enable <webview>
         webviewTag: true,
 
         // Enforce allowRunningInsecureContent deactivation
         allowRunningInsecureContent: false,
 
-        // ToDo: Activate contextIsolation as soon as <webview> is compatible with
+        // Enable experimental features (so we can have worker-src until Electron use Chrome 59)
+        experimentalFeatures: true,
+
+        // Disable WebGL
+        webgl: false,
+
+        // Sandbox the renderer (broken due to webframe and desktopsharing dependencies)
+        // Anyway, it's not very secure: https://github.com/electron/electron/issues/6712#issuecomment-299441941
+        //sandbox: true,
+
+        // Context isolation on main browser window (break <webview>)
         //contextIsolation: true,
       },
     });

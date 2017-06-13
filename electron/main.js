@@ -160,12 +160,6 @@ class ElectronWrapperInit {
       // Prevent default behavior
       event.preventDefault();
 
-      // Ensure the link come from a webview
-      /*if (typeof event.sender.viewInstanceId !== 'number') {
-        this.debug('New window did not came from a webview, aborting.');
-        return;
-      }*/
-
       // Ensure the link come from a whitelisted link
       if (!util.isMatchingEmbedOpenExternalWhitelist(event.sender.history[0], _url)) {
         webviewProtectionDebug('Tried to open a non-whitelisted window from a webview, aborting. URL: %s', _url);
@@ -178,7 +172,7 @@ class ElectronWrapperInit {
 
     app.on('web-contents-created', (event, contents) => {
 
-      // These events should only be applied on webviews
+      // The following events should only be applied on webviews
       if (contents.getType() !== 'webview') {
         return;
       }

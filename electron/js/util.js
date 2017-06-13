@@ -42,7 +42,7 @@ module.exports = {
     for (let embedDomain of config.EMBED_DOMAINS) {
 
       // If the hostname match
-      if(currentHostname === embedDomain.hostname || (typeof embedDomain.hostname === 'object' && embedDomain.hostname.includes(currentHostname))) {
+      if (currentHostname === embedDomain.hostname || (typeof embedDomain.hostname === 'object' && embedDomain.hostname.includes(hostname))) {
         console.log(`Allowing ${embedDomain.name}`);
         return true;
       }
@@ -58,7 +58,7 @@ module.exports = {
     for (let embedDomain of config.EMBED_DOMAINS) {
 
       // If the hostname match
-      if(currentHostname === embedDomain.hostname || (typeof embedDomain.hostname === 'object' && embedDomain.hostname.includes(currentHostname))) {
+      if (currentHostname === embedDomain.hostname || (typeof embedDomain.hostname === 'object' && embedDomain.hostname.includes(currentHostname))) {
 
         // And the link to open is allowed
         return embedDomain.allowedExternalLinks.includes(linkHostname);

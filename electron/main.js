@@ -43,16 +43,16 @@ const tray = require('./js/menu/tray');
 const util = require('./js/util');
 const windowManager = require('./js/window-manager');
 
+// Config
+const argv = minimist(process.argv.slice(1));
+const config = require('./js/config');
+
 // Web server
 const HTTPServer = require('./js/lib/HTTPServer');
 const WEB_SERVER_LISTEN = '127.0.0.1';
 const WEB_SERVER_HOST = 'wire://prod.local';
 const WEB_SERVER_FILES = path.join(USER_DATAS_PATH, 'app.wire.com.asar');
 const WEB_SERVER_TOKEN_NAME = 'Local';
-
-// Config
-const argv = minimist(process.argv.slice(1));
-const config = require('./js/config');
 
 // Local files
 const PRELOAD_JS = path.join(APP_PATH, 'js', 'preload.js');
@@ -167,7 +167,7 @@ class ElectronWrapperInit {
       }*/
 
       // Ensure the link come from a whitelisted link
-      if (!util.isMatchingEmbedOpenExternalWhitelist(_url)) {
+      if (!util.isMatchingEmbedOpenExternalWhitelist(event.sender.history[0], _url)) {
         webviewProtectionDebug('Tried to open a non-whitelisted window from a webview, aborting. URL: %s', _url);
         return;
       }

@@ -38,12 +38,34 @@ module.exports = {
 
   isMatchingEmbed: (_url) => {
     const hostname = url.parse(_url).hostname;
-    return (config.EMBED_DOMAINS.indexOf(hostname) !== -1);
+
+    for (let embedDomain of config.EMBED_DOMAINS) {
+
+      // If the hostname match
+      if(currentHostname === embedDomain.hostname || (typeof embedDomain.hostname === 'object' && embedDomain.hostname.includes(currentHostname))) {
+        console.log(`Allowing ${embedDomain.name}`);
+        return true;
+      }
+    }
+
+    return false;
   },
 
-  isMatchingEmbedOpenExternalWhitelist: (_url) => {
-    const hostname = url.parse(_url).hostname;
-    return (config.ALLOWED_WEBVIEWS_OPEN_EXTERNAL.indexOf(hostname) !== -1);
+  isMatchingEmbedOpenExternalWhitelist: (domain, _url) => {
+    const currentHostname = url.parse(domain).hostname;
+    const linkHostname = url.parse(_url).hostname;
+
+    for (let embedDomain of config.EMBED_DOMAINS) {
+
+      // If the hostname match
+      if(currentHostname === embedDomain.hostname || (typeof embedDomain.hostname === 'object' && embedDomain.hostname.includes(currentHostname))) {
+
+        // And the link to open is allowed
+        return embedDomain.allowedExternalLinks.includes(linkHostname);
+      }
+    }
+
+    return false;
   },
 
   openInExternalWindow: function(_url) {

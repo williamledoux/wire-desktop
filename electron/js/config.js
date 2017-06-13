@@ -54,27 +54,45 @@ let config = {
   UPDATE_DELAY: 5 * 60 * 1000,
   UPDATE_INTERVAL: 24 * 60 * 60 * 1000,
 
-  ALLOWED_WEBVIEWS_OPEN_EXTERNAL: [
+  EMBED_DOMAINS: [
+
     // Youtube
-    'www.youtube.com',
+    {
+      name: 'Youtube',
+      hostname: 'www.youtube-nocookie.com',
+      allowedExternalLinks: [
+        'www.youtube.com'
+      ]
+    },
 
     // Vimeo
-    'vimeo.com',
-    'player.vimeo.com',
+    {
+      name: 'Vimeo',
+      hostname: 'player.vimeo.com',
+      allowedExternalLinks: [
+        'vimeo.com',
+        'player.vimeo.com',
+      ]
+    },
 
     // Soundcloud
-    'soundcloud.com',
+    {
+      name: 'Soundcloud',
+      hostname: 'w.soundcloud.com',
+      allowedExternalLinks: [
+        'soundcloud.com',
+      ]
+    },
 
     // Spotify
-    'www.spotify.com',
-    'developer.spotify.com',
-  ],
-
-  EMBED_DOMAINS: [
-    'www.youtube-nocookie.com',
-    'player.vimeo.com',
-    'embed.spotify.com',
-    'w.soundcloud.com',
+    {
+      name: 'Spotify',
+      hostname: ['open.spotify.com', 'embed.spotify.com'],
+      allowedExternalLinks: [
+        'www.spotify.com',
+        'developer.spotify.com',
+      ]
+    },
   ],
 
   BACKEND_URLS: [

@@ -362,7 +362,7 @@ class ElectronWrapperInit {
       try {
         const code = await googleAuth.getAccessToken(config.GOOGLE_SCOPES, config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET);
         event.sender.send('google-auth-success', code.access_token);
-      } catch(e) {
+      } catch (e) {
         event.sender.send('google-auth-error', error);
       }
     });
@@ -652,7 +652,7 @@ class BrowserWindowInit {
         const css = await this.getWrapperStyle();
         this.browserWindow.webContents.insertCSS(css);
         browserWindowListenersDebug('Successfully added wrapper CSS');
-      } catch(err) {
+      } catch (err) {
         browserWindowListenersDebug('WARNING: Unable to add wrapper CSS into the webapp! Error: %o', err);
       };
 
@@ -806,7 +806,7 @@ class BrowserWindowInit {
 
     // Add embed contents to the filter
     for (let i=0; i < config.EMBED_DOMAINS.length; i++) {
-      if(!config.EMBED_DOMAINS[i].hostname) {
+      if (!config.EMBED_DOMAINS[i].hostname) {
         continue;
       }
       for (let x=0; x < config.EMBED_DOMAINS[i].hostname.length; x++) {

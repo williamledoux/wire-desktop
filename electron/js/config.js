@@ -59,7 +59,7 @@ let config = {
     // Youtube
     {
       name: 'Youtube',
-      hostname: 'www.youtube-nocookie.com',
+      hostname: ['www.youtube-nocookie.com'],
       allowedExternalLinks: [
         'www.youtube.com',
       ],
@@ -68,7 +68,7 @@ let config = {
     // Vimeo
     {
       name: 'Vimeo',
-      hostname: 'player.vimeo.com',
+      hostname: ['player.vimeo.com'],
       allowedExternalLinks: [
         'vimeo.com',
         'player.vimeo.com',
@@ -78,7 +78,7 @@ let config = {
     // Soundcloud
     {
       name: 'Soundcloud',
-      hostname: 'w.soundcloud.com',
+      hostname: ['w.soundcloud.com'],
       allowedExternalLinks: [
         'soundcloud.com',
       ],

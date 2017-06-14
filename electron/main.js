@@ -798,9 +798,14 @@ class BrowserWindowInit {
       `${this.PROD_URL}/*`,
     ];
 
-    // Embed contents
+    // Add embed contents to the filter
     for (let i=0; i < config.EMBED_DOMAINS.length; i++) {
-      filters.push(`https://${config.EMBED_DOMAINS[i]}/*`);
+      if(!config.EMBED_DOMAINS[i].hostname) {
+        continue;
+      }
+      for (let x=0; x < config.EMBED_DOMAINS[i].hostname.length; x++) {
+        filters.push(`https://${config.EMBED_DOMAINS[i].hostname[x]}/*`);
+      }
     }
 
     this.debug('Current filters for onBeforeSendHeaders: %o', filters);

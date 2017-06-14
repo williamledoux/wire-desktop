@@ -19,38 +19,69 @@
 
 'use strict';
 
-const app = require('electron').app || require('electron').remote.app;
-
 const fs = require('fs');
 const path = require('path');
 
-const INIT_JSON = path.join(app.getPath('userData'), 'init.json');
+const app = require('electron').app;
+const debug = require('debug');
 
+class Init {
 
-module.exports = (function() {
-  function save(name, value) {
-    let data = {};
+  constructor(file) {
+    this.file = file;
+    this.debug = debug('init');
+
+    // Content of init.json
     try {
-      data = JSON.parse(fs.readFileSync(INIT_JSON, 'utf8'));
-    } catch (error) {
-      console.log(INIT_JSON, 'not found!');
+      this.datas = this._readFromFile();
+    } catch(e) {
+      this.datas = {};
+      this.debug('Unable to parse the init file. Details: %s', e);
     }
-    data[name] = value;
-    fs.writeFileSync(INIT_JSON, JSON.stringify(data));
+
+    // Save configuration file when Electron exit
+    /*app.on('before-quit', async () => {
+      this.debug('Persisting user configuration file...');
+      await this._saveToFile();
+    });*/
+
+    this.debug('Init init');
+    return true;
   }
 
-  function restore(name, defaultValue) {
-    try {
-      const data = JSON.parse(fs.readFileSync(INIT_JSON, 'utf8'));
-      const value = data[name];
-      return typeof value !== 'undefined' ? value : defaultValue;
-    } catch (error) {
-      return defaultValue;
-    }
+  save(name, value) {
+    this.debug('Saving %s with "%o" as value', name, value);
+    this.datas[name] = value;
+    return true;
   }
 
-  return {
-    save,
-    restore,
-  };
-}());
+  restore(name, defaultValue) {
+    this.debug('Restoring %s', name);
+    const value = this.datas[name];
+    return (typeof value !== 'undefined' ? value : defaultValue);
+  }
+
+  _saveToFile() {
+    return new Promise((resolve, reject) => {
+      const datasInJSON = JSON.stringify(this.datas);
+      this.debug('Saving datas to persistent storage: %o' ,datasInJSON);
+      fs.writeFile(this.file, datasInJSON, 'utf8', (err, data) => {
+        if (err) {
+          this.debug('An error occurred while saving the config file: %s', err);
+          reject(err);
+          return;
+        }
+        resolve(data);
+      });
+    });
+  }
+
+  _readFromFile() {
+      this.debug('Reading user configuration file...');
+      const datasInJSON = JSON.parse(fs.readFileSync(this.file, 'utf8'));
+      this.debug('%o', datasInJSON);
+      return datasInJSON;
+  }
+}
+
+module.exports = Init;

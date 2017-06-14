@@ -19,6 +19,7 @@
 
 'use strict';
 
+
 // Modules
 const {app, BrowserWindow, ipcMain, Menu, shell, protocol} = require('electron');
 const fs = require('fs');
@@ -31,11 +32,22 @@ const debug = require('debug');
 const APP_PATH = app.getAppPath();
 const USER_DATAS_PATH = app.getPath('userData');
 
+// Local files
+const INIT_JSON = path.join(USER_DATAS_PATH, 'init.json');
+const PRELOAD_JS = path.join(APP_PATH, 'js', 'preload.js');
+const WRAPPER_CSS = path.join(APP_PATH, 'css', 'wrapper.css');
+const SPLASH_HTML = `file://${path.join(APP_PATH, 'html', 'splash.html')}`;
+const CERT_ERR_HTML = `file://${path.join(APP_PATH, 'html', 'certificate-error.html')}`;
+const ABOUT_HTML = `file://${path.join(APP_PATH, 'html', 'about.html')}`;
+
+// Configuration persistence
+const init = require('./js/lib/init');
+global.init = new init(INIT_JSON);
+
 // Wrapper modules
 const certutils = require('./js/certutils');
 const download = require('./js/lib/download');
 const googleAuth = require('./js/lib/googleAuth');
-const init = require('./js/lib/init');
 const locale = require('./locale/locale');
 const systemMenu = require('./js/menu/system');
 const developerMenu = require('./js/menu/developer');
@@ -54,12 +66,6 @@ const WEB_SERVER_HOST = 'wire://prod.local';
 const WEB_SERVER_FILES = path.join(USER_DATAS_PATH, 'app.wire.com.asar');
 const WEB_SERVER_TOKEN_NAME = 'Local';
 
-// Local files
-const PRELOAD_JS = path.join(APP_PATH, 'js', 'preload.js');
-const WRAPPER_CSS = path.join(APP_PATH, 'css', 'wrapper.css');
-const SPLASH_HTML = 'file://' + path.join(APP_PATH, 'html', 'splash.html');
-const CERT_ERR_HTML = 'file://' + path.join(APP_PATH, 'html', 'certificate-error.html');
-const ABOUT_HTML = 'file://' + path.join(APP_PATH, 'html', 'about.html');
 
 // Icon
 const ICON = 'wire.' + ((process.platform === 'win32') ? 'ico' : 'png');
@@ -139,7 +145,7 @@ class ElectronWrapperInit {
   getBaseUrl() {
 
     if (!argv.env && config.DEVELOPMENT) {
-      switch (init.restore('env', config.INTERNAL)) {
+      switch (global.init.restore('env', config.INTERNAL)) {
         //case config.PROD: return undefined;
         case config.DEV: return config.DEV_URL;
         case config.EDGE: return config.EDGE_URL;
@@ -484,7 +490,7 @@ class BrowserWindowInit {
       minWidth: config.MIN_WIDTH_MAIN,
       minHeight: config.MIN_HEIGHT_MAIN,
 
-      autoHideMenuBar: !init.restore('showMenu', true),
+      autoHideMenuBar: !global.init.restore('showMenu', true),
       icon: ICON_PATH,
       show: false,
 
@@ -526,10 +532,10 @@ class BrowserWindowInit {
     this.browserWindow.loadURL(SPLASH_HTML);
 
     // Restore previous window size
-    if (init.restore('fullscreen', false)) {
+    if (global.init.restore('fullscreen', false)) {
       this.browserWindow.setFullScreen(true);
     } else {
-      this.browserWindow.setBounds(init.restore('bounds', this.browserWindow.getBounds()));
+      this.browserWindow.setBounds(global.init.restore('bounds', this.browserWindow.getBounds()));
     }
 
     // Set a fixed pinch-to-zoom level
@@ -668,15 +674,19 @@ class BrowserWindowInit {
 
       const isFullScreen = this.browserWindow.isFullScreen();
 
-      init.save('fullscreen', isFullScreen);
+      global.init.save('fullscreen', isFullScreen);
       if (!isFullScreen) {
-        init.save('bounds', this.browserWindow.getBounds());
+        global.init.save('bounds', this.browserWindow.getBounds());
       }
 
       if (!this.quitting) {
         event.preventDefault();
         this.browserWindow.hide();
       }
+
+      // Save modifications to the file
+      this.debug('Persisting user configuration file...');
+      await global.init._saveToFile();
     });
 
     // Reload the window if it the webapp crashed

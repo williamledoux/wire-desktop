@@ -25,7 +25,6 @@ const MenuItem = remote.MenuItem;
 const webContents = remote.getCurrentWebContents();
 const config = require('./../config');
 const locale = require('./../../locale/locale');
-const init = require('./../lib/init');
 const customContext = require('./custom-context');
 let textMenu;
 

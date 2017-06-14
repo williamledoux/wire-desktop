@@ -70,7 +70,7 @@ const WEB_SERVER_TOKEN_NAME = 'Local';
 //const WireUpdater = require('./js/lib/WireUpdater');
 
 // Icon
-const ICON = 'wire.' + ((process.platform === 'win32') ? 'ico' : 'png');
+const ICON = `wire.${((process.platform === 'win32') ? 'ico' : 'png')}`;
 const ICON_PATH = path.join(APP_PATH, 'img', ICON);
 
 class ElectronWrapperInit {
@@ -381,7 +381,7 @@ class ElectronWrapperInit {
     ipcMain.once('load-webapp', () => {
       this.debug('load-webapp fired');
 
-      let baseURL = WEB_SERVER_HOST + '/index.html?hl=' + locale.getCurrent();
+      const baseURL = `${WEB_SERVER_HOST}/index.html?hl=${locale.getCurrent()}`;
       this.debug('Accessing %s', baseURL);
       this.browserWindow.loadURL(baseURL);
     });
@@ -398,8 +398,10 @@ class ElectronWrapperInit {
         resizable: false,
         fullscreen: false,
       });
+
       this.browserWindowAbout.setMenuBarVisibility(false);
       this.browserWindowAbout.loadURL(ABOUT_HTML);
+
       this.browserWindowAbout.webContents.on('dom-ready', () => {
         this.browserWindowAbout.webContents.send('about-loaded', {
           webappVersion: this.webappVersion,
@@ -437,7 +439,7 @@ class ElectronWrapperInit {
   // System Menu & Tray Icon
   menus() {
     app.on('ready', () => {
-      let appMenu = systemMenu.createMenu();
+      const appMenu = systemMenu.createMenu();
 
       if (config.DEVELOPMENT) {
         appMenu.append(developerMenu);
@@ -464,7 +466,7 @@ class ElectronWrapperInit {
 
   // Archive old console.log
   cleanupLogFile() {
-    let consoleLog = path.join(USER_DATAS_PATH, config.CONSOLE_LOG);
+    const consoleLog = path.join(USER_DATAS_PATH, config.CONSOLE_LOG);
 
     fs.stat(consoleLog, (err, stats) => {
       if (!err) {
@@ -610,7 +612,7 @@ class BrowserWindowInit {
         browserWindowListenersDebug('Allowing access to wire://');
 
         // Resize the window if needed
-        let size = this.browserWindow.getSize();
+        const size = this.browserWindow.getSize();
         if (size[0] < config.MIN_WIDTH_MAIN || size[1] < config.MIN_HEIGHT_MAIN) {
           browserWindowListenersDebug('Resize to big window');
           util.resizeToBig(this.browserWindow);
@@ -647,7 +649,7 @@ class BrowserWindowInit {
 
       // Overwrite webapp styles
       try {
-        let css = await this.getWrapperStyle();
+        const css = await this.getWrapperStyle();
         this.browserWindow.webContents.insertCSS(css);
         browserWindowListenersDebug('Successfully added wrapper CSS');
       } catch(err) {

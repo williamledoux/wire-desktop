@@ -22,7 +22,6 @@
 const app = require('electron').app || require('electron').remote.app;
 
 const config = require('./../js/config');
-const init = require('./../js/lib/init');
 const da = require('./strings-da');
 const de = require('./strings-de');
 const cs = require('./strings-cs');

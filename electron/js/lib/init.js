@@ -20,9 +20,8 @@
 'use strict';
 
 const fs = require('fs');
-const path = require('path');
 
-const app = require('electron').app;
+//const app = require('electron').app;
 const debug = require('debug');
 
 class Init {
@@ -34,7 +33,7 @@ class Init {
     // Content of init.json
     try {
       this.datas = this._readFromFile();
-    } catch(e) {
+    } catch (e) {
       this.datas = {};
       this.debug('Unable to parse the init file. Details: %s', e);
     }
@@ -64,7 +63,7 @@ class Init {
   _saveToFile() {
     return new Promise((resolve, reject) => {
       const datasInJSON = JSON.stringify(this.datas);
-      this.debug('Saving datas to persistent storage: %o' ,datasInJSON);
+      this.debug('Saving datas to persistent storage: %o', datasInJSON);
       fs.writeFile(this.file, datasInJSON, 'utf8', (err, data) => {
         if (err) {
           this.debug('An error occurred while saving the config file: %s', err);
@@ -77,10 +76,10 @@ class Init {
   }
 
   _readFromFile() {
-      this.debug('Reading user configuration file...');
-      const datasInJSON = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-      this.debug('%o', datasInJSON);
-      return datasInJSON;
+    this.debug('Reading user configuration file...');
+    const datasInJSON = JSON.parse(fs.readFileSync(this.file, 'utf8'));
+    this.debug('%o', datasInJSON);
+    return datasInJSON;
   }
 }
 

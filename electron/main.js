@@ -66,6 +66,8 @@ const WEB_SERVER_HOST = 'wire://prod.local';
 const WEB_SERVER_FILES = path.join(USER_DATAS_PATH, 'app.wire.com.asar');
 const WEB_SERVER_TOKEN_NAME = 'Local';
 
+// Updater
+//const WireUpdater = require('./js/lib/WireUpdater');
 
 // Icon
 const ICON = 'wire.' + ((process.platform === 'win32') ? 'ico' : 'png');
@@ -83,6 +85,9 @@ class ElectronWrapperInit {
     this.webappVersion = false;
     this.raygunClient = false;
     this.debug = debug('ElectronWrapperInit');
+  }
+
+  async run() {
 
     this.debug('webviewProtection init');
     this.webviewProtection();
@@ -106,39 +111,38 @@ class ElectronWrapperInit {
     this.misc();
 
     this.debug('runWebServer init');
-    this.runWebServer().then((res) => {
+    const {usedPort, accessToken} = await this.runWebServer();
 
-      // URL for production is the local web server
-      const PROD_URL = `http://${WEB_SERVER_LISTEN}:${res.usedPort}`;
+    // URL for production is the local web server
+    const PROD_URL = `http://${WEB_SERVER_LISTEN}:${usedPort}`;
 
-      // Register the wire:// protocol
-      this.debug('registerProtocols init');
-      this.registerProtocols(PROD_URL);
+    // Register the wire:// protocol
+    this.debug('registerProtocols init');
+    this.registerProtocols(PROD_URL);
 
-      // Expose the accessToken and PROD_URL to the BrowserWindowInit class
-      //this.debug('Token is %s', res.accessToken);
-      app.once('ready', () => {
+    // Expose the accessToken and PROD_URL to the BrowserWindowInit class
+    //this.debug('Token is %s', accessToken);
+    app.once('ready', () => {
 
-        if (!this.main) {
-          this.debug('Unable to set datas in the BrowserWindowInit class, requests to the web server will likely fail!');
-          return;
-        }
+      if (!this.main) {
+        this.debug('Unable to set datas in the BrowserWindowInit class, requests to the web server will likely fail!');
+        return;
+      }
 
-        this.main.accessToken = res.accessToken;
-        this.debug('Token has been set');
+      this.main.accessToken = accessToken;
+      this.debug('Token has been set');
 
-        this.main.PROD_URL = PROD_URL;
-        this.debug('PROD_URL has been set');
+      this.main.PROD_URL = PROD_URL;
+      this.debug('PROD_URL has been set');
 
-        this.main.onBeforeSendHeaders();
-        this.debug('onBeforeSendHeaders init');
-      });
-
-      // Register IPC events
-      // (including the load-webapp event which is the event that will load the webapp)
-      this.debug('ipcEvents init');
-      this.ipcEvents();
+      this.main.onBeforeSendHeaders();
+      this.debug('onBeforeSendHeaders init');
     });
+
+    // Register IPC events
+    // (including the load-webapp event which is the event that will load the webapp)
+    this.debug('ipcEvents init');
+    this.ipcEvents();
   }
 
   // Used to forward wire:// requests
@@ -352,16 +356,15 @@ class ElectronWrapperInit {
       windowManager.showPrimaryWindow();
     });
 
-    ipcMain.on('google-auth-request', (event) => {
+    ipcMain.on('google-auth-request', async (event) => {
       this.debug('google-auth-request fired');
 
-      googleAuth.getAccessToken(config.GOOGLE_SCOPES, config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET)
-        .then((code) => {
-          event.sender.send('google-auth-success', code.access_token);
-        })
-        .catch((error) => {
-          event.sender.send('google-auth-error', error);
-        });
+      try {
+        const code = await googleAuth.getAccessToken(config.GOOGLE_SCOPES, config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET);
+        event.sender.send('google-auth-success', code.access_token);
+      } catch(e) {
+        event.sender.send('google-auth-error', error);
+      }
     });
 
     if (process.platform !== 'darwin') {
@@ -640,15 +643,16 @@ class BrowserWindowInit {
       shell.openExternal(_url);
     });
 
-    this.browserWindow.webContents.on('dom-ready', () => {
+    this.browserWindow.webContents.on('dom-ready', async () => {
 
       // Overwrite webapp styles
-      this.getWrapperStyle().then((css) => {
+      try {
+        let css = await this.getWrapperStyle();
         this.browserWindow.webContents.insertCSS(css);
         browserWindowListenersDebug('Successfully added wrapper CSS');
-      }).catch((err) => {
+      } catch(err) {
         browserWindowListenersDebug('WARNING: Unable to add wrapper CSS into the webapp! Error: %o', err);
-      });
+      };
 
       if (!this.enteredWebapp) {
         this.browserWindow.webContents.send('splash-screen-loaded');
@@ -670,7 +674,7 @@ class BrowserWindowInit {
       tray.updateBadgeIcon(this.browserWindow);
     });
 
-    this.browserWindow.on('close', (event) => {
+    this.browserWindow.on('close', async (event) => {
 
       const isFullScreen = this.browserWindow.isFullScreen();
 
@@ -829,4 +833,4 @@ class BrowserWindowInit {
   }
 };
 
-(new ElectronWrapperInit());
+(new ElectronWrapperInit()).run();

@@ -389,6 +389,21 @@ class ElectronWrapperInit {
     this.webviewProtection();
   }
 
+  getBaseUrl() {
+
+    if (!argv.env && config.DEVELOPMENT) {
+      switch (settings.restore('env', config.INTERNAL)) {
+        case config.DEV: return config.DEV_URL;
+        case config.EDGE: return config.EDGE_URL;
+        case config.INTERNAL: return config.INTERNAL_URL;
+        case config.LOCALHOST: return config.LOCALHOST_URL;
+        case config.STAGING: return config.STAGING_URL;
+      }
+    }
+
+    return argv.env || config.PROD_URL;
+  }
+
   // <webview> hardening
   webviewProtection() {
     const webviewProtectionDebug = debug('ElectronWrapperInit:webviewProtection');
